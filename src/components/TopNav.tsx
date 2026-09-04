@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ActiveTab, LifeStage } from '../types';
-import { Sparkles, Heart, Filter, ChevronDown, Check, User, ShieldCheck } from 'lucide-react';
+import { Sparkles, Heart, Filter, ChevronDown, Check, User, ShieldCheck, Moon, Sun } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface TopNavProps {
@@ -10,6 +10,8 @@ interface TopNavProps {
   onSelectLifeStage: (stage: LifeStage) => void;
   onOpenSupport: () => void;
   vouchedCount: number;
+  isNightMode: boolean;
+  onToggleNightMode: () => void;
 }
 
 const LIFE_STAGES: LifeStage[] = [
@@ -30,6 +32,8 @@ export const TopNav: React.FC<TopNavProps> = ({
   onSelectLifeStage,
   onOpenSupport,
   vouchedCount,
+  isNightMode,
+  onToggleNightMode,
 }) => {
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -107,6 +111,17 @@ export const TopNav: React.FC<TopNavProps> = ({
 
         {/* Right-Hand Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            id="night-mode-toggle"
+            type="button"
+            onClick={onToggleNightMode}
+            aria-label={isNightMode ? 'Switch to day mode' : 'Switch to night mode'}
+            title={isNightMode ? 'Switch to day mode' : 'Switch to night mode'}
+            className="w-9 h-9 rounded-full border border-[#e5e5e5] flex items-center justify-center text-[#14213d] hover:bg-[#e5e5e5]/40 transition-colors outline-none cursor-pointer"
+          >
+            {isNightMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
           {/* Life Stage Filter Pill */}
           <div className="relative">
             <button
