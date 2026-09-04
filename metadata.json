@@ -1,0 +1,6 @@
+{
+  "name": "Plenary: Illuminating Questions",
+  "description": "A breezy, minimalist interface for discovering, vouching, and Socratic reflection on life's deepest questions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
