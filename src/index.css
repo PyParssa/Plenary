@@ -50,6 +50,26 @@ body {
   background-color: #17232d !important;
 }
 
+.night-mode #central-pill-navigation {
+  background-color: rgba(245, 241, 232, 0.06);
+  border-color: #34424d;
+}
+
+.night-mode #nav-pill-deck.bg-white,
+.night-mode #nav-pill-vault.bg-white,
+.night-mode #nav-pill-authors.bg-white {
+  background-color: #f5f1e8 !important;
+  border-color: #f5f1e8 !important;
+  color: #101820 !important;
+  box-shadow: 0 0 0 1px rgba(245, 241, 232, 0.22);
+}
+
+.night-mode #nav-pill-deck:not(.bg-white),
+.night-mode #nav-pill-vault:not(.bg-white),
+.night-mode #nav-pill-authors:not(.bg-white) {
+  color: #f5f1e8;
+}
+
 .night-mode .bg-white\/95 {
   background-color: rgb(16 24 32 / 0.95) !important;
 }
