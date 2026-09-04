@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
@@ -9,12 +10,109 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const pendingCodes = new Map<string, { code: string; expiresAt: number; attempts: number }>();
+
+function normalizeEmail(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const email = value.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
+async function sendVerificationEmail(email: string, code: string): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[dev] Verification code for ${email}: ${code}`);
+      return;
+    }
+    throw new Error('Email delivery is not configured');
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject: 'Your Plenary verification code',
+      text: `Your Plenary verification code is ${code}. It expires in 10 minutes.`,
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Email provider returned ${response.status}`);
+}
+
+async function appendSignupToSheet(email: string, selectedAtmospheres: string[]): Promise<void> {
+  const webhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Plenary-Webhook-Secret': process.env.GOOGLE_SHEETS_WEBHOOK_SECRET ?? '',
+    },
+    body: JSON.stringify({
+      secret: process.env.GOOGLE_SHEETS_WEBHOOK_SECRET ?? '',
+      email,
+      selectedAtmospheres,
+      createdAt: new Date().toISOString(),
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Google Sheets webhook returned ${response.status}`);
+}
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
+
+  app.post('/api/auth/request-code', async (req, res) => {
+    const email = normalizeEmail(req.body?.email);
+    if (!email) return res.status(400).json({ error: 'Enter a valid email address.' });
+
+    const code = String(crypto.randomInt(100000, 1000000));
+    pendingCodes.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000, attempts: 0 });
+
+    try {
+      await sendVerificationEmail(email, code);
+      const developmentCode = process.env.NODE_ENV !== 'production' && !process.env.RESEND_API_KEY ? code : undefined;
+      return res.json({ ok: true, developmentCode });
+    } catch (error) {
+      pendingCodes.delete(email);
+      console.error('Verification email error:', error);
+      return res.status(503).json({ error: 'Email delivery is not configured yet.' });
+    }
+  });
+
+  app.post('/api/auth/verify-code', async (req, res) => {
+    const email = normalizeEmail(req.body?.email);
+    const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+    const selectedAtmospheres = Array.isArray(req.body?.selectedAtmospheres)
+      ? req.body.selectedAtmospheres.filter((item: unknown): item is string => typeof item === 'string').slice(0, 3)
+      : [];
+    const pending = email ? pendingCodes.get(email) : undefined;
+
+    if (!email || !pending || pending.expiresAt < Date.now() || pending.attempts >= 5 || code !== pending.code) {
+      if (pending) pending.attempts += 1;
+      return res.status(400).json({ error: 'That code is invalid or expired.' });
+    }
+
+    pendingCodes.delete(email);
+    try {
+      await appendSignupToSheet(email, selectedAtmospheres);
+      return res.json({ ok: true, email });
+    } catch (error) {
+      console.error('Signup sheet error:', error);
+      return res.status(503).json({ error: 'Your code was correct, but signup storage is unavailable.' });
+    }
+  });
 
   // Socratic Reflection API endpoint with server-side Gemini
   app.post('/api/socratic-reflect', async (req, res) => {

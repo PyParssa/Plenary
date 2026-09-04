@@ -317,6 +317,7 @@ export default function App() {
 
       <AccountModal
         isOpen={isAccountOpen}
+        selectedAtmospheres={guestProfile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]')}
         onClose={() => {
           setIsAccountOpen(false);
           setPendingAction(null);

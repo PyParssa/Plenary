@@ -45,7 +45,7 @@ export const JourneyPicker: React.FC<JourneyPickerProps> = ({ onComplete }) => {
                   isSelected ? 'border-[#fca311] ring-2 ring-[#fca311]/60' : 'border-white/15'
                 }`}
               >
-                <img src={choice.image} alt={choice.label} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" referrerPolicy="no-referrer" />
+                <img src={`/assets/journey/${choice.id}.jpg`} alt={choice.label} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = choice.image; }} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" referrerPolicy="no-referrer" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-black/10" />
                 <div className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-white/40 bg-black/20 text-xs">
                   {isSelected ? <Check className="h-4 w-4 text-[#fca311]" /> : index + 1}

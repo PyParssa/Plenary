@@ -78,8 +78,25 @@ Example `.env`:
 ```
 VITE_API_URL=http://localhost:3000
 GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=Plenary <noreply@your-verified-domain.com>
+GOOGLE_SHEETS_WEBHOOK_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
+GOOGLE_SHEETS_WEBHOOK_SECRET=use-a-long-random-secret
 ```
 Replace `YOUR_GOOGLE_API_KEY` with your actual Google Generative AI API key.
+
+### Email verification and Google Sheets signups
+
+The account flow sends a six-digit code through Resend. In development, if `RESEND_API_KEY` is not configured, the code is shown in the server terminal and in the account dialog. Production must use a verified Resend sending domain.
+
+To collect verified accounts in a Sheet without running a database:
+
+1. Create a Google Sheet with a tab named `Signups` and columns `Created At`, `Email`, and `Atmospheres`.
+2. Open Extensions > Apps Script, paste the contents of `google-apps-script/Code.gs`, replace `SHEET_ID`, and set the Apps Script property `PLENARY_WEBHOOK_SECRET` to the same value as your server environment variable.
+3. Deploy the script as a Web app, execute as yourself, and allow anyone with the link to access it. Put its `/exec` URL in `GOOGLE_SHEETS_WEBHOOK_URL`.
+4. Restart or redeploy the server. The server, not the browser, calls the webhook after the email code is verified.
+
+Put the four picker images in `public/assets/journey/`; see that folder's README for the exact filenames.
 
 ### Running the Development Server
 
