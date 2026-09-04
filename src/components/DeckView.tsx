@@ -57,18 +57,14 @@ export const DeckView: React.FC<DeckViewProps> = ({
 
   const handleNext = () => {
     setSwipeDirection('right');
-    setTimeout(() => {
-      setCurrentIndex((prev) => (prev + 1) % cards.length);
-      setSwipeDirection(null);
-    }, 220);
+    setCurrentIndex((prev) => (prev + 1) % cards.length);
+    window.setTimeout(() => setSwipeDirection(null), 120);
   };
 
   const handlePrev = () => {
     setSwipeDirection('left');
-    setTimeout(() => {
-      setCurrentIndex((prev) => (prev - 1 + cards.length) % cards.length);
-      setSwipeDirection(null);
-    }, 220);
+    setCurrentIndex((prev) => (prev - 1 + cards.length) % cards.length);
+    window.setTimeout(() => setSwipeDirection(null), 120);
   };
 
   return (
@@ -204,7 +200,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
         opacity: 0,
         x: direction === 'left' ? -120 : direction === 'right' ? 120 : 0,
       }}
-      transition={{ duration: 0.22, ease: 'easeOut' }}
+      transition={{ duration: 0.12, ease: 'easeOut' }}
       className="relative w-[460px] max-w-[92vw] min-h-[580px] bg-white border border-[#e5e5e5] rounded-[32px] shadow-xl p-8 sm:p-10 flex flex-col items-center text-center justify-between cursor-grab active:cursor-grabbing select-none"
     >
       {/* Top Meta & Content Section */}
