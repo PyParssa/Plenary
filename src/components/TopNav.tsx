@@ -40,19 +40,19 @@ export const TopNav: React.FC<TopNavProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-[#e5e5e5] text-[#14213d]">
-      <div className="w-full max-w-7xl mx-auto px-3 sm:px-10 py-3 sm:py-5 flex items-center justify-between gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-10 py-3 sm:py-5 flex items-center justify-between gap-2 sm:gap-4 flex-wrap sm:flex-nowrap min-w-0">
         {/* Brand Logo & Title */}
         <div
           id="brand-header-logo"
           onClick={() => onTabChange('deck')}
-          className="flex items-center gap-3 cursor-pointer group select-none shrink-0"
+          className="flex items-center gap-3 cursor-pointer group select-none shrink-0 min-w-0"
         >
           <div className="w-3 h-3 bg-[#fca311] rounded-full shadow-[0_0_10px_#fca311] transition-transform duration-300 group-hover:scale-125" />
-          <div>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[#14213d] leading-none">
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-xl font-bold tracking-tight text-[#14213d] leading-none truncate">
               PLENARY
             </h1>
-            <p className="text-[10px] uppercase tracking-[0.2em] opacity-60 text-[#14213d] mt-0.5">
+            <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] opacity-60 text-[#14213d] mt-0.5 whitespace-nowrap">
               Illuminating Questions
             </p>
           </div>
@@ -110,7 +110,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         </nav>
 
         {/* Right-Hand Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap justify-end shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap justify-end shrink-0 min-w-0">
           <button
             id="night-mode-toggle"
             type="button"
@@ -185,7 +185,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             id="support-patron-button"
             type="button"
             onClick={onOpenSupport}
-            className="text-xs font-semibold px-3 sm:px-4 py-1.5 border border-[#fca311] text-[#fca311] rounded-full hover:bg-[#fca311]/5 transition-colors outline-none cursor-pointer shrink-0"
+            className="hidden sm:inline-flex text-xs font-semibold px-3 sm:px-4 py-1.5 border border-[#fca311] text-[#fca311] rounded-full hover:bg-[#fca311]/5 transition-colors outline-none cursor-pointer shrink-0"
           >
             Support
           </button>
