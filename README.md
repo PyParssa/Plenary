@@ -15,6 +15,7 @@ A full-stack web application built with React, Vite, TypeScript, and Node.js wit
 -   [Project Structure](#project-structure)
 -   [Contributing](#contributing)
 -   [License](#license)
+-   [Support Parssa](#support-parssa)
 
 ## Features
 
@@ -121,6 +122,14 @@ bun run start # or npm run start or yarn start
 -   `tsconfig.json`: TypeScript configuration.
 -   `vite.config.ts`: Vite frontend build configuration.
 -   `package.json`: Project dependencies and scripts.
+
+## Support Parssa
+
+If you find this project helpful and would like to support my work, you can send crypto (Solana) to the following wallet address:
+
+**Solana Wallet Address:** `ExHycmN3JJH2S3MuLjVLsGigz6PaaEkwsnb3KSxi9dQJ`
+
+Visit my website: [parssa.pro](https://parssa.pro)
 
 ## Contributing
 
