@@ -12,6 +12,7 @@ interface TopNavProps {
   vouchedCount: number;
   isNightMode: boolean;
   onToggleNightMode: () => void;
+  accountEmail?: string;
 }
 
 const LIFE_STAGES: LifeStage[] = [
@@ -34,6 +35,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   vouchedCount,
   isNightMode,
   onToggleNightMode,
+  accountEmail,
 }) => {
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -202,7 +204,7 @@ export const TopNav: React.FC<TopNavProps> = ({
               aria-label="User Profile and Stats"
               className="w-9 h-9 rounded-full border border-[#e5e5e5] bg-[#14213d] flex items-center justify-center text-white text-xs font-bold transition-transform hover:scale-105 outline-none cursor-pointer"
             >
-              JD
+              {accountEmail ? accountEmail.slice(0, 2).toUpperCase() : 'G'}
             </button>
 
             {profileOpen && (
@@ -221,10 +223,10 @@ export const TopNav: React.FC<TopNavProps> = ({
                     </div>
                     <div>
                       <div className="text-xs font-bold text-[#14213d] flex items-center gap-1">
-                        Seeker Voyager
-                        <ShieldCheck className="w-3.5 h-3.5 text-[#fca311]" />
+                        {accountEmail ? 'Personal account' : 'Guest mode'}
+                        {accountEmail && <ShieldCheck className="w-3.5 h-3.5 text-[#fca311]" />}
                       </div>
-                      <div className="text-[11px] text-[#14213d]/60">Socratic Inquirer</div>
+                      <div className="text-[11px] text-[#14213d]/60">{accountEmail ?? 'Browsing freely'}</div>
                     </div>
                   </div>
 

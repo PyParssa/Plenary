@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { ActiveTab, LifeStage, QuestionCard, ReflectionSession } from './types';
+import { ActiveTab, GuestProfile, LifeStage, QuestionCard, ReflectionSession } from './types';
 import { INITIAL_QUESTIONS, INITIAL_AUTHORS } from './data/initialData';
+import { rankQuestions } from './data/journey';
 import { TopNav } from './components/TopNav';
 import { DeckView } from './components/DeckView';
 import { VaultView } from './components/VaultView';
@@ -13,6 +14,8 @@ import { AuthorStudioView } from './components/AuthorStudioView';
 import { SocraticDrawer } from './components/SocraticDrawer';
 import { SupportModal } from './components/SupportModal';
 import { ShareModal } from './components/ShareModal';
+import { AccountModal } from './components/AccountModal';
+import { JourneyPicker } from './components/JourneyPicker';
 import { Sparkles, CheckCircle2, Bookmark } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -33,6 +36,18 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('deck');
   const [selectedLifeStage, setSelectedLifeStage] = useState<LifeStage>('All Inquiries');
   const [isNightMode, setIsNightMode] = useState(() => localStorage.getItem('plenary_night_mode') === 'true');
+  const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(() => {
+    const saved = localStorage.getItem('plenary_profile');
+    if (!saved) return null;
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return null;
+    }
+  });
+  const [isJourneyOpen, setIsJourneyOpen] = useState(() => !localStorage.getItem('plenary_journey'));
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   // Socratic Drawer State
   const [selectedReflectionCard, setSelectedReflectionCard] = useState<QuestionCard | null>(null);
@@ -68,6 +83,10 @@ export default function App() {
     localStorage.setItem('plenary_night_mode', String(isNightMode));
   }, [isNightMode]);
 
+  useEffect(() => {
+    if (guestProfile) localStorage.setItem('plenary_profile', JSON.stringify(guestProfile));
+  }, [guestProfile]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -93,6 +112,43 @@ export default function App() {
     showToast('Inquiry vouched and anchored in your Vault');
   };
 
+  const requireAccount = (action: () => void) => {
+    if (guestProfile) {
+      action();
+      return;
+    }
+    setPendingAction(() => action);
+    setIsAccountOpen(true);
+  };
+
+  const handleCreateAccount = (email: string) => {
+    setGuestProfile({
+      email,
+      createdAt: Date.now(),
+      selectedAtmospheres: guestProfile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
+    });
+    setIsAccountOpen(false);
+    pendingAction?.();
+    setPendingAction(null);
+    showToast('Account created. Your inquiry is now yours to keep.');
+  };
+
+  const handleJourneyComplete = (selectedIds: string[]) => {
+    localStorage.setItem('plenary_journey', JSON.stringify(selectedIds));
+    setGuestProfile((current) => (current ? { ...current, selectedAtmospheres: selectedIds } : current));
+    setCards((current) => rankQuestions(current, selectedIds));
+    setIsJourneyOpen(false);
+    showToast('Your first inquiry has been chosen from your path.');
+  };
+
+  const handleTabChange = (tab: ActiveTab) => {
+    if (tab === 'vault' && !guestProfile) {
+      requireAccount(() => setActiveTab(tab));
+      return;
+    }
+    setActiveTab(tab);
+  };
+
   const handleUnvouchCard = (cardId: string) => {
     setCards((prev) =>
       prev.map((c) => {
@@ -111,8 +167,10 @@ export default function App() {
 
   // Open Socratic AI Drawer
   const handleOpenReflection = (card: QuestionCard) => {
-    setSelectedReflectionCard(card);
-    setIsDrawerOpen(true);
+    requireAccount(() => {
+      setSelectedReflectionCard(card);
+      setIsDrawerOpen(true);
+    });
   };
 
   // Save Socratic session
@@ -155,13 +213,14 @@ export default function App() {
       {/* Top Navigation */}
       <TopNav
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         selectedLifeStage={selectedLifeStage}
         onSelectLifeStage={setSelectedLifeStage}
         onOpenSupport={() => setIsSupportOpen(true)}
         vouchedCount={vouchedCards.length}
         isNightMode={isNightMode}
         onToggleNightMode={() => setIsNightMode((current) => !current)}
+        accountEmail={guestProfile?.email}
       />
 
       {/* Main Content Body */}
@@ -178,8 +237,8 @@ export default function App() {
             >
               <DeckView
                 cards={filteredCards}
-                onVouchCard={handleVouchCard}
-                onUnvouchCard={handleUnvouchCard}
+                onVouchCard={(cardId) => requireAccount(() => handleVouchCard(cardId))}
+                onUnvouchCard={(cardId) => requireAccount(() => handleUnvouchCard(cardId))}
                 onOpenReflection={handleOpenReflection}
                 onShareCard={(card) => setShareCard(card)}
                 onSelectRelated={(inquiry) => {
@@ -220,7 +279,7 @@ export default function App() {
               <AuthorStudioView
                 authors={authors}
                 cards={cards}
-                onAddCustomCard={handleAddCustomCard}
+                onAddCustomCard={(newCardData) => requireAccount(() => handleAddCustomCard(newCardData))}
                 onSelectAuthorFilter={(authorName) => {
                   setSelectedLifeStage('All Inquiries');
                   setActiveTab('deck');
@@ -255,6 +314,17 @@ export default function App() {
         onClose={() => setShareCard(null)}
         card={shareCard}
       />
+
+      <AccountModal
+        isOpen={isAccountOpen}
+        onClose={() => {
+          setIsAccountOpen(false);
+          setPendingAction(null);
+        }}
+        onCreateAccount={handleCreateAccount}
+      />
+
+      {isJourneyOpen && <JourneyPicker onComplete={handleJourneyComplete} />}
 
       {/* Toast Notification Notification Pill */}
       <AnimatePresence>

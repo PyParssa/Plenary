@@ -52,3 +52,9 @@ export interface ReflectionSession {
 }
 
 export type ActiveTab = 'deck' | 'vault' | 'authors';
+
+export interface GuestProfile {
+  email: string;
+  createdAt: number;
+  selectedAtmospheres: string[];
+}
