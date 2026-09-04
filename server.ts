@@ -21,54 +21,15 @@ async function startServer() {
     try {
       const { question, backstory, author, book, currentTurn, maxTurns, messages } = req.body;
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        return res.json({
-          reply: getFallbackReflection(question, author, currentTurn, messages),
-        });
-      }
-
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-          },
-        },
+      const lockedMessage = `This is a Pro feature. The Socratic AI will unlock when the app is deployed with its production AI credentials. Until then, your reflection practice is intentionally paused.`;
+      return res.json({
+        reply: lockedMessage,
       });
-
-      const systemInstruction = `You are Plenary's Socratic Guide, a contemplative, discerning, and gentle philosophical interlocutor inspired by classic stoic, existential, and meditative traditions.
-The seeker is meditating on the question: "${question}" from "${book}" by ${author}.
-Context: ${backstory}.
-
-This dialogue is structured into 5 turns of deep reflection (Currently Turn ${currentTurn} of ${maxTurns}).
-Rules for your reply:
-- Keep your response brief, uncluttered, and poetic (strictly under 70 words).
-- Do not provide cheerleading, cliché self-help advice, or bulleted lists.
-- Directly acknowledge the essence of what the user just expressed.
-- Turn 1-4: Pose one illuminating, gentle, penetrating question that invites deeper honesty.
-- Turn 5 (Final Turn): Offer a grounded, luminous synthesis of what was unearthed.`;
-
-      const contents = (messages || []).map((m: { role: string; content: string }) => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.content }],
-      }));
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: contents.length > 0 ? contents : [{ parts: [{ text: 'Begin reflection.' }] }],
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        },
-      });
-
-      const reply = response.text || getFallbackReflection(question, author, currentTurn, messages);
-      res.json({ reply });
     } catch (error) {
-      console.error('Gemini Socratic API error:', error);
-      const { question, author, currentTurn, messages } = req.body;
-      res.json({ reply: getFallbackReflection(question, author, currentTurn, messages) });
+      console.error('Socratic AI locked state error:', error);
+      return res.json({
+        reply: 'This is a Pro feature. Please wait until deployment to unlock the Socratic AI.',
+      });
     }
   });
 
