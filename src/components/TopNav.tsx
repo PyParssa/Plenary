@@ -39,13 +39,13 @@ export const TopNav: React.FC<TopNavProps> = ({
   const [profileOpen, setProfileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#e5e5e5] text-[#14213d]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-10 py-4 sm:py-5 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-[#e5e5e5] text-[#14213d]">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-10 py-3 sm:py-5 flex items-center justify-between gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
         {/* Brand Logo & Title */}
         <div
           id="brand-header-logo"
           onClick={() => onTabChange('deck')}
-          className="flex items-center gap-3 cursor-pointer group select-none"
+          className="flex items-center gap-3 cursor-pointer group select-none shrink-0"
         >
           <div className="w-3 h-3 bg-[#fca311] rounded-full shadow-[0_0_10px_#fca311] transition-transform duration-300 group-hover:scale-125" />
           <div>
@@ -110,14 +110,14 @@ export const TopNav: React.FC<TopNavProps> = ({
         </nav>
 
         {/* Right-Hand Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap justify-end shrink-0">
           <button
             id="night-mode-toggle"
             type="button"
             onClick={onToggleNightMode}
             aria-label={isNightMode ? 'Switch to day mode' : 'Switch to night mode'}
             title={isNightMode ? 'Switch to day mode' : 'Switch to night mode'}
-            className="w-9 h-9 rounded-full border border-[#e5e5e5] flex items-center justify-center text-[#14213d] hover:bg-[#e5e5e5]/40 transition-colors outline-none cursor-pointer"
+            className="w-9 h-9 rounded-full border border-[#e5e5e5] flex items-center justify-center text-[#14213d] hover:bg-[#e5e5e5]/40 transition-colors outline-none cursor-pointer shrink-0"
           >
             {isNightMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
@@ -133,7 +133,7 @@ export const TopNav: React.FC<TopNavProps> = ({
               }}
               className="flex items-center bg-[#e5e5e5]/30 border border-[#e5e5e5] rounded-full px-3.5 sm:px-4 py-1.5 gap-2 cursor-pointer hover:border-[#14213d]/30 text-xs font-medium text-[#14213d] transition-all outline-none"
             >
-              <span className="max-w-[85px] sm:max-w-[130px] truncate">
+              <span className="max-w-[72px] sm:max-w-[130px] truncate">
                 {selectedLifeStage}
               </span>
               <ChevronDown
@@ -185,7 +185,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             id="support-patron-button"
             type="button"
             onClick={onOpenSupport}
-            className="text-xs font-semibold px-3.5 sm:px-4 py-1.5 border border-[#fca311] text-[#fca311] rounded-full hover:bg-[#fca311]/5 transition-colors outline-none cursor-pointer"
+            className="text-xs font-semibold px-3 sm:px-4 py-1.5 border border-[#fca311] text-[#fca311] rounded-full hover:bg-[#fca311]/5 transition-colors outline-none cursor-pointer shrink-0"
           >
             Support
           </button>
