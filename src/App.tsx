@@ -149,7 +149,9 @@ export default function App() {
   const vouchedCards = cards.filter((c) => c.vouched);
 
   return (
-    <div className={`${isNightMode ? 'night-mode' : ''} min-h-screen bg-white text-[#14213d] flex flex-col font-sans selection:bg-[#fca311]/25`}>
+    <div
+      className={`${isNightMode ? 'night-mode' : ''} w-full min-h-screen bg-white text-[#14213d] flex flex-col font-sans selection:bg-[#fca311]/25 transition-colors duration-300 overflow-x-hidden`}
+    >
       {/* Top Navigation */}
       <TopNav
         activeTab={activeTab}
