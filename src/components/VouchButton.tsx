@@ -19,6 +19,9 @@ export const VouchButton: React.FC<VouchButtonProps> = ({
   const [progress, setProgress] = useState<number>(0);
   const [isPressing, setIsPressing] = useState<boolean>(false);
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
+  const [showCount, setShowCount] = useState<boolean>(false);
+  const [countValue, setCountValue] = useState<number>(3);
+  const [showFlash, setShowFlash] = useState<boolean>(false);
   const pressStartTimeRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -35,23 +38,30 @@ export const VouchButton: React.FC<VouchButtonProps> = ({
     }
 
     setIsPressing(true);
+    setShowCount(true);
+    setCountValue(3);
     pressStartTimeRef.current = performance.now();
 
     const updateLoop = (now: number) => {
       if (!pressStartTimeRef.current) return;
       const elapsed = now - pressStartTimeRef.current;
       const pct = Math.min(100, (elapsed / HOLD_DURATION_MS) * 100);
+      const remaining = Math.max(1, Math.ceil((HOLD_DURATION_MS - elapsed) / 1000));
       setProgress(pct);
+      setCountValue(remaining);
 
       if (pct >= 100) {
         // Completed!
         setIsPressing(false);
+        setShowCount(false);
         setProgress(100);
         setShowCelebration(true);
+        setShowFlash(true);
         onVouchSuccess();
 
         setTimeout(() => {
           setShowCelebration(false);
+          setShowFlash(false);
           setProgress(0);
         }, 1800);
       } else {
@@ -66,6 +76,7 @@ export const VouchButton: React.FC<VouchButtonProps> = ({
     if (isVouched) return;
     if (isPressing) {
       setIsPressing(false);
+      setShowCount(false);
       pressStartTimeRef.current = null;
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -90,6 +101,20 @@ export const VouchButton: React.FC<VouchButtonProps> = ({
 
   return (
     <div className="flex flex-col items-center">
+      {showFlash && (
+        <div className="fixed inset-0 z-[60] bg-[radial-gradient(circle,#fff_0%,#fff_24%,#fca311_62%,rgba(252,163,17,0.12)_100%)] animate-pulse pointer-events-none" />
+      )}
+
+      {showCount && (
+        <div className="pointer-events-none fixed inset-0 z-[65] flex items-center justify-center">
+          <div className="rounded-full bg-[#14213d]/80 text-white px-6 py-4 shadow-2xl border border-white/20 animate-pulse">
+            <span className="font-mono text-4xl font-black tracking-tight text-[#fca311]">
+              {countValue}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="relative flex items-center justify-center select-none touch-none">
         {/* Animated Celebration Aura */}
         {showCelebration && (
