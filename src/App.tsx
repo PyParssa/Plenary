@@ -32,6 +32,7 @@ export default function App() {
   const [authors] = useState(INITIAL_AUTHORS);
   const [activeTab, setActiveTab] = useState<ActiveTab>('deck');
   const [selectedLifeStage, setSelectedLifeStage] = useState<LifeStage>('All Inquiries');
+  const [isNightMode, setIsNightMode] = useState(() => localStorage.getItem('plenary_night_mode') === 'true');
 
   // Socratic Drawer State
   const [selectedReflectionCard, setSelectedReflectionCard] = useState<QuestionCard | null>(null);
@@ -62,6 +63,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('plenary_reflections', JSON.stringify(reflectionSessions));
   }, [reflectionSessions]);
+
+  useEffect(() => {
+    localStorage.setItem('plenary_night_mode', String(isNightMode));
+  }, [isNightMode]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -144,7 +149,7 @@ export default function App() {
   const vouchedCards = cards.filter((c) => c.vouched);
 
   return (
-    <div className="min-h-screen bg-white text-[#14213d] flex flex-col font-sans selection:bg-[#fca311]/25">
+    <div className={`${isNightMode ? 'night-mode' : ''} min-h-screen bg-white text-[#14213d] flex flex-col font-sans selection:bg-[#fca311]/25`}>
       {/* Top Navigation */}
       <TopNav
         activeTab={activeTab}
@@ -153,6 +158,8 @@ export default function App() {
         onSelectLifeStage={setSelectedLifeStage}
         onOpenSupport={() => setIsSupportOpen(true)}
         vouchedCount={vouchedCards.length}
+        isNightMode={isNightMode}
+        onToggleNightMode={() => setIsNightMode((current) => !current)}
       />
 
       {/* Main Content Body */}

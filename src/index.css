@@ -27,6 +27,71 @@ body {
   margin: 0;
 }
 
+.night-mode {
+  background-color: #101820;
+  color: #f5f1e8;
+}
+
+.night-mode .bg-white {
+  background-color: #17232d !important;
+}
+
+.night-mode .bg-white\/95 {
+  background-color: rgb(16 24 32 / 0.95) !important;
+}
+
+.night-mode.text-\[\#14213d\],
+.night-mode .text-\[\#14213d\] {
+  color: #f5f1e8 !important;
+}
+
+.night-mode .text-\[\#14213d\]\/40,
+.night-mode .text-\[\#14213d\]\/50,
+.night-mode .text-\[\#14213d\]\/60,
+.night-mode .text-\[\#14213d\]\/65,
+.night-mode .text-\[\#14213d\]\/70,
+.night-mode .text-\[\#14213d\]\/75,
+.night-mode .text-\[\#14213d\]\/80 {
+  color: rgb(245 241 232 / 0.68) !important;
+}
+
+.night-mode .border-\[\#e5e5e5\] {
+  border-color: #34424d !important;
+}
+
+.night-mode .stroke-\[\#14213d\] {
+  stroke: #f5f1e8 !important;
+}
+
+.night-mode .bg-\[\#e5e5e5\]\/10,
+.night-mode .bg-\[\#e5e5e5\]\/20,
+.night-mode .bg-\[\#e5e5e5\]\/30,
+.night-mode .bg-\[\#e5e5e5\]\/40,
+.night-mode .bg-\[\#e5e5e5\]\/50,
+.night-mode .bg-\[\#e5e5e5\]\/60 {
+  background-color: rgb(245 241 232 / 0.1) !important;
+}
+
+.night-mode input,
+.night-mode textarea,
+.night-mode select {
+  color: #f5f1e8;
+  background-color: #17232d;
+}
+
+.night-mode input::placeholder,
+.night-mode textarea::placeholder {
+  color: rgb(245 241 232 / 0.4);
+}
+
+.night-mode ::-webkit-scrollbar-track {
+  background: #101820;
+}
+
+.night-mode ::-webkit-scrollbar-thumb {
+  background: #34424d;
+}
+
 .font-serif-clean {
   font-family: 'Cormorant Garamond', Georgia, Cambria, serif;
 }
