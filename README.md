@@ -143,4 +143,6 @@ Contributions are welcome! Please follow these steps:
 
 ## License
 
-[MIT License](LICENSE.md) - *If you have a specific license, please update this section.*
+This project is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License](LICENSE.md).
+
+You may use, copy, modify, and share this project for non-commercial purposes with appropriate credit to Parssa. Commercial use requires separate written permission from the author.
