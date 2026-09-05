@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { ActiveTab, GuestProfile, LifeStage, QuestionCard, ReflectionSession } from './types';
+import { ActiveTab, GuestProfile, LifeStage, LlmSettings, QuestionCard, ReflectionSession } from './types';
 import { INITIAL_QUESTIONS, INITIAL_AUTHORS } from './data/initialData';
 import { rankQuestions } from './data/journey';
 import { TopNav } from './components/TopNav';
@@ -46,10 +46,42 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [llmSettings, setLlmSettings] = useState<LlmSettings>(() => {
+    const saved = localStorage.getItem('plenary_llm_settings');
+    if (saved) {
+      try { return JSON.parse(saved) as LlmSettings; } catch { /* use defaults */ }
+    }
+    return { provider: 'openai', apiKey: '', model: 'gpt-4o-mini' };
+  });
 
   const handleOpenAccount = () => {
     setActiveTab('account');
-    setIsAccountOpen(true);
+    if (!guestProfile) setIsAccountOpen(true);
+  };
+
+  const handleUpdateProfile = async (displayName: string) => {
+    if (!userId || !guestProfile) throw new Error('Please sign in to update your username.');
+    const nextName = displayName.trim();
+    if (!nextName) throw new Error('Username cannot be empty.');
+    const { error } = await supabase.auth.updateUser({ data: { display_name: nextName } });
+    if (error) throw error;
+    await saveProfile(userId, guestProfile.email, nextName);
+    setGuestProfile({ ...guestProfile, displayName: nextName });
+  };
+
+  const handleDeleteAccount = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('Your session has expired. Please sign in again.');
+    const response = await fetch('/api/account/delete', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? 'Unable to delete your account.');
+    await supabase.auth.signOut();
+    setUserId(null);
+    setGuestProfile(null);
+    setActiveTab('deck');
+    showToast('Your account has been deleted.');
   };
 
   const handleLogout = async () => {
@@ -58,6 +90,11 @@ export default function App() {
     setGuestProfile(null);
     setActiveTab('deck');
     showToast('You have been logged out.');
+  };
+
+  const handleSaveLlmSettings = (settings: LlmSettings) => {
+    setLlmSettings(settings);
+    localStorage.setItem('plenary_llm_settings', JSON.stringify(settings));
   };
 
   // Socratic Drawer State
@@ -149,12 +186,32 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+    let oauthCallbackPending = Boolean(
+      new URLSearchParams(window.location.search).get('code') ||
+      window.location.hash.includes('access_token=') ||
+      window.location.hash.includes('error_description=')
+    );
 
-    const hydrateSession = async (session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
+    const hydrateSession = async (
+      session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'],
+      allowSessionRecheck = true,
+    ) => {
       if (!isMounted) return;
 
-      if (!session?.user?.email) {
+      setIsAuthReady(false);
+
+      if (!session?.user?.id && allowSessionRecheck) {
+        const { data: currentSession } = await supabase.auth.getSession();
+        if (currentSession.session?.user?.id) {
+          await hydrateSession(currentSession.session, false);
+          return;
+        }
+        if (oauthCallbackPending) return;
+      }
+
+      if (!session?.user?.id) {
         setUserId(null);
+        setGuestProfile(null);
         setIsAuthReady(true);
         return;
       }
@@ -165,7 +222,7 @@ export default function App() {
         if (!isMounted) return;
         const selectedAtmospheres = saved.profile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]');
         setGuestProfile({
-          email: saved.profile?.email ?? session.user.email,
+          email: saved.profile?.email ?? session.user.email ?? '',
           displayName: saved.profile?.displayName ?? session.user.user_metadata?.display_name,
           createdAt: saved.profile?.createdAt ?? Date.now(),
           selectedAtmospheres,
@@ -187,7 +244,25 @@ export default function App() {
       setIsAuthReady(true);
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => void hydrateSession(session));
+    const bootstrapAuth = async () => {
+      const callbackCode = new URLSearchParams(window.location.search).get('code');
+      if (callbackCode) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(callbackCode);
+        if (!error && data.session) {
+          oauthCallbackPending = false;
+          window.history.replaceState({}, document.title, window.location.pathname);
+          await hydrateSession(data.session, false);
+          return;
+        }
+        console.error('Google OAuth callback exchange failed:', error);
+      }
+
+      oauthCallbackPending = false;
+      const { data: { session } } = await supabase.auth.getSession();
+      await hydrateSession(session);
+    };
+
+    void bootstrapAuth();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       void hydrateSession(session);
@@ -346,6 +421,10 @@ export default function App() {
               <VaultView
                 vouchedCards={vouchedCards}
                 onOpenReflection={handleOpenReflection}
+                onOpenVaultReflection={() => requireAccount(() => {
+                  setSelectedReflectionCard(null);
+                  setIsDrawerOpen(true);
+                })}
                 onUnvouch={handleUnvouchCard}
                 onShareCard={(card) => setShareCard(card)}
                 onGoToDeck={() => setActiveTab('deck')}
@@ -381,7 +460,7 @@ export default function App() {
               transition={{ duration: 0.18 }}
               className="w-full"
             >
-              <AccountView profile={guestProfile} />
+              <AccountView profile={guestProfile} onUpdateProfile={handleUpdateProfile} onDeleteAccount={handleDeleteAccount} llmSettings={llmSettings} onSaveLlmSettings={handleSaveLlmSettings} />
             </motion.section>
           )}
         </AnimatePresence>
@@ -392,9 +471,9 @@ export default function App() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         card={selectedReflectionCard}
-        savedSession={
-          selectedReflectionCard ? reflectionSessions[selectedReflectionCard.id] : undefined
-        }
+        cards={selectedReflectionCard ? [selectedReflectionCard] : vouchedCards}
+        apiSettings={llmSettings}
+        savedSession={selectedReflectionCard ? reflectionSessions[selectedReflectionCard.id] : reflectionSessions['__vault__']}
         onSaveSession={handleSaveSession}
       />
 
@@ -412,7 +491,7 @@ export default function App() {
       />
 
       <AccountModal
-        isOpen={isAccountOpen || (isAuthReady && !guestProfile)}
+        isOpen={isAccountOpen || (isAuthReady && !userId && !guestProfile)}
         selectedAtmospheres={guestProfile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]')}
         onClose={() => {
           setIsAccountOpen(false);

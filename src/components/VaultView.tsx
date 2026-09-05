@@ -18,6 +18,7 @@ interface VaultViewProps {
   onUnvouch: (cardId: string) => void;
   onShareCard: (card: QuestionCard) => void;
   onGoToDeck: () => void;
+  onOpenVaultReflection: () => void;
 }
 
 export const VaultView: React.FC<VaultViewProps> = ({
@@ -26,6 +27,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onUnvouch,
   onShareCard,
   onGoToDeck,
+  onOpenVaultReflection,
 }) => {
   const [filterStage, setFilterStage] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,6 +74,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
           </div>
         </div>
       </div>
+
+      {vouchedCards.length > 0 && (
+        <button type="button" onClick={onOpenVaultReflection} className="my-6 flex w-full items-center justify-center gap-3 rounded-2xl bg-[#14213d] px-5 py-4 text-sm font-semibold text-white shadow-lg transition hover:bg-black">
+          <Sparkles className="h-5 w-5 text-[#fca311]" />
+          Reflection - Socratic AI
+          <span className="text-xs font-normal text-white/60">Explore your complete vouched collection</span>
+        </button>
+      )}
 
       {/* Filter and Search Bar */}
       {vouchedCards.length > 0 && (

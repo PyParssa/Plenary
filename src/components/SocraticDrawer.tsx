@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { QuestionCard, ChatMessage, ReflectionSession } from '../types';
-import { X, Send, Sparkles, Bot, User, CheckCircle2, RefreshCw } from 'lucide-react';
+import { QuestionCard, ChatMessage, LlmSettings, ReflectionSession } from '../types';
+import { X, Send, Sparkles, Bot, User, Download, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SocraticDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   card: QuestionCard | null;
+  cards: QuestionCard[];
+  apiSettings: LlmSettings;
   savedSession?: ReflectionSession;
   onSaveSession: (session: ReflectionSession) => void;
 }
@@ -15,6 +17,8 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
   isOpen,
   onClose,
   card,
+  cards,
+  apiSettings,
   savedSession,
   onSaveSession,
 }) => {
@@ -22,29 +26,30 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
   const [inputVal, setInputVal] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [turn, setTurn] = useState(1);
-  const maxTurns = 5;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Initialize or restore session whenever the card or drawer opens
   useEffect(() => {
-    if (!isOpen || !card) return;
+    if (!isOpen || cards.length === 0) return;
 
     if (savedSession && savedSession.messages.length > 0) {
       setMessages(savedSession.messages);
-      setTurn(Math.min(maxTurns, savedSession.turnsCompleted + 1));
+      setTurn(savedSession.turnsCompleted + 1);
     } else {
       // Craft an illuminating opening reflection prompt from Socratic AI
       const openingMessage: ChatMessage = {
-        id: `msg-init-${card.id}`,
+        id: `msg-init-${card?.id ?? 'vault'}`,
         role: 'assistant',
-        content: `Welcome to this inquiry. ${card.author} framed this question inside '${card.book}'. When you hold the thought—"${card.question}"—what is the immediate internal resistance or quiet truth that surfaces in your mind?`,
+        content: card
+          ? `Welcome to this inquiry. ${card.author} framed this question inside '${card.book}'. When you hold the thought—"${card.question}"—what is the immediate internal resistance or quiet truth that surfaces in your mind?`
+          : `Welcome to your vouched inquiries. I have brought ${cards.length} cards into this reflection. Which question is asking for your attention first, and what does it reveal about the life you are currently living?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages([openingMessage]);
       setTurn(1);
     }
-  }, [isOpen, card?.id]);
+  }, [isOpen, card?.id, cards.length]);
 
   // Auto-scroll to bottom of conversation
   useEffect(() => {
@@ -61,7 +66,7 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
   };
 
   const handleSendMessage = async () => {
-    if (!inputVal.trim() || isLoading || !card) return;
+    if (!inputVal.trim() || isLoading || cards.length === 0) return;
 
     const userText = inputVal.trim();
     setInputVal('');
@@ -81,20 +86,15 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
     setIsLoading(true);
 
     const currentTurn = turn;
-    const isFinalTurn = currentTurn >= maxTurns;
-
     try {
       // Call server-side Gemini API endpoint
       const response = await fetch('/api/socratic-reflect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          question: card.question,
-          backstory: card.backstory,
-          author: card.author,
-          book: card.book,
+          apiSettings,
+          cards,
           currentTurn,
-          maxTurns,
           messages: updatedMessages.map((m) => ({
             role: m.role === 'user' ? 'user' : 'model',
             content: m.content,
@@ -121,20 +121,20 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
       const finalMessages = [...updatedMessages, newAssistantMessage];
       setMessages(finalMessages);
 
-      const nextTurn = Math.min(maxTurns, currentTurn + 1);
+      const nextTurn = currentTurn + 1;
       setTurn(nextTurn);
 
       // Persist session
       onSaveSession({
-        cardId: card.id,
+        cardId: card?.id ?? '__vault__',
         turnsCompleted: currentTurn,
-        maxTurns,
+        maxTurns: 0,
         messages: finalMessages,
-        completed: isFinalTurn,
+        completed: false,
       });
     } catch {
       // Offline fallback
-      const aiReply = getContextualSocraticFallback(card, userText, currentTurn);
+      const aiReply = getContextualSocraticFallback(card ?? cards[0], userText, currentTurn);
       const newAssistantMessage: ChatMessage = {
         id: `ai-${Date.now()}`,
         role: 'assistant',
@@ -144,14 +144,14 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
 
       const finalMessages = [...updatedMessages, newAssistantMessage];
       setMessages(finalMessages);
-      setTurn(Math.min(maxTurns, currentTurn + 1));
+      setTurn(currentTurn + 1);
 
       onSaveSession({
-        cardId: card.id,
+        cardId: card?.id ?? '__vault__',
         turnsCompleted: currentTurn,
-        maxTurns,
+        maxTurns: 0,
         messages: finalMessages,
-        completed: isFinalTurn,
+        completed: false,
       });
     } finally {
       setIsLoading(false);
@@ -165,26 +165,45 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
     }
   };
 
-  const handleRestartDialogue = () => {
-    if (!card) return;
+  const handleNewChat = () => {
+    const contextCard = card ?? cards[0];
+    if (!contextCard) return;
     const openingMessage: ChatMessage = {
-      id: `msg-restart-${Date.now()}`,
+      id: `msg-new-${Date.now()}`,
       role: 'assistant',
-      content: `Let us begin afresh. "${card.question}" In this moment, without self-censorship, what does this question ask you to let go of?`,
+      content: card
+        ? `Let us begin a new reflection. "${contextCard.question}" In this moment, without self-censorship, what does this question ask you to let go of?`
+        : `Let us begin a new reflection across your vouched inquiries. Which question is most alive for you right now, and what does it ask you to examine?`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     setMessages([openingMessage]);
     setTurn(1);
     onSaveSession({
-      cardId: card.id,
+      cardId: card?.id ?? '__vault__',
       turnsCompleted: 0,
-      maxTurns,
+      maxTurns: 0,
       messages: [openingMessage],
       completed: false,
     });
   };
 
-  if (!isOpen || !card) return null;
+  const handleExportMarkdown = () => {
+    const title = card ? `Reflection on: ${card.question}` : 'Plenary Socratic Reflection';
+    const context = cards.map((contextCard) => `- **${contextCard.author}** (${contextCard.category}): ${contextCard.question}`).join('\n');
+    const conversation = messages.map((message) => `### ${message.role === 'user' ? 'You' : 'Plenary Socratic AI'}\n\n${message.content}`).join('\n\n');
+    const markdown = `# ${title}\n\n## Vouched inquiry context\n\n${context}\n\n## Conversation\n\n${conversation}\n`;
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `plenary-reflection-${new Date().toISOString().slice(0, 10)}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  if (!isOpen || cards.length === 0) return null;
 
   return (
     <AnimatePresence>
@@ -220,13 +239,11 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
             </div>
 
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={handleRestartDialogue}
-                title="Restart inquiry"
-                className="p-1.5 rounded-full hover:bg-[#e5e5e5]/50 text-[#14213d]/60 hover:text-[#14213d] transition-colors cursor-pointer"
-              >
-                <RefreshCw className="w-4 h-4" />
+              <button type="button" onClick={handleNewChat} title="New chat" aria-label="New chat" className="p-1.5 rounded-full hover:bg-[#e5e5e5]/50 text-[#14213d]/60 hover:text-[#14213d] transition-colors cursor-pointer">
+                <Plus className="w-4 h-4" />
+              </button>
+              <button type="button" onClick={handleExportMarkdown} title="Export chat as Markdown" aria-label="Export chat as Markdown" className="p-1.5 rounded-full hover:bg-[#e5e5e5]/50 text-[#14213d]/60 hover:text-[#14213d] transition-colors cursor-pointer">
+                <Download className="w-4 h-4" />
               </button>
               <button
                 id="close-socratic-drawer-button"
@@ -246,15 +263,11 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
           >
             <div className="flex items-center justify-between text-[10px] text-[#14213d]/60 font-medium">
               <span className="uppercase tracking-wider font-bold text-[9px]">
-                {card.category}
+                {card ? card.category : `${cards.length} vouched cards`}
               </span>
-              <span>
-                {card.author} • <em className="not-italic opacity-80">{card.book}</em>
-              </span>
+              <span>{card ? <>{card.author} • <em className="not-italic opacity-80">{card.book}</em></> : 'Your complete reflection context'}</span>
             </div>
-            <p className="font-serif text-sm text-[#14213d] leading-snug font-medium italic">
-              “{card.question}”
-            </p>
+            <p className="font-serif text-sm text-[#14213d] leading-snug font-medium italic">{card ? `“${card.question}”` : 'The Socratic AI is holding your complete vouched collection.'}</p>
           </div>
 
           {/* Conversation Message List */}
@@ -290,18 +303,6 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
               </div>
             )}
 
-            {turn > maxTurns && (
-              <div className="my-2 p-3.5 rounded-2xl bg-[#fca311]/10 border border-[#fca311]/30 text-xs text-[#14213d]">
-                <div className="flex items-center gap-1.5 font-bold mb-1 text-[#14213d]">
-                  <CheckCircle2 className="w-4 h-4 text-[#fca311]" />
-                  5-Turn Socratic Deep Reflection Complete
-                </div>
-                <p className="text-[11px] leading-relaxed text-[#14213d]/80">
-                  This reflection dialogue is etched in your vault. You can revisit it anytime.
-                </p>
-              </div>
-            )}
-
             <div ref={messagesEndRef} />
           </div>
 
@@ -309,7 +310,7 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
           <div className="p-4 border-t border-[#e5e5e5] bg-white">
             <div className="flex flex-col gap-2">
               <div className="text-[9px] font-bold text-[#14213d]/40 uppercase tracking-wider">
-                TURN {Math.min(turn, maxTurns)} OF {maxTurns} (Deep Reflection)
+                TURN {turn} (Deep Reflection)
               </div>
               <div className="flex gap-2 items-center">
                 <input

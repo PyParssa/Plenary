@@ -42,7 +42,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-up');
+  const [mode, setMode] = useState<'sign-in' | 'sign-up' | 'forgot-password'>('sign-up');
   const [isVerifying, setIsVerifying] = useState(false);
 
   if (!isOpen) return null;
@@ -130,8 +130,30 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
       if (authError) throw authError;
     } catch (authError) {
       console.error('Supabase Google authentication error:', authError);
-      const message = describeAuthError(authError, 'Unable to sign in with Google.');
+      const rawMessage = authError instanceof Error ? authError.message : '';
+      const message = rawMessage.toLowerCase().includes('unsupported provider')
+        ? 'Google sign-in is not enabled yet. In Supabase, open Authentication > Providers > Google, enable it, add the Google Client ID and Client Secret, then save.'
+        : describeAuthError(authError, 'Unable to sign in with Google.');
       setError(message);
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || isLoading) return;
+    setError('');
+    setIsLoading(true);
+    try {
+      const { error: authError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: `${getAuthRedirectUrl()}/account`,
+      });
+      if (authError) throw authError;
+      setError('Password reset instructions sent. Check your email.');
+    } catch (authError) {
+      setError(describeAuthError(authError, 'Unable to send password reset instructions.'));
+    } finally {
       setIsLoading(false);
     }
   };
@@ -141,9 +163,9 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative w-full max-w-md rounded-[28px] bg-white p-7 text-[#14213d] shadow-2xl sm:p-9">
         <div className="mb-7 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fca311]/15 text-[#fca311]"><Mail className="h-5 w-5" /></div>
         <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#fca311]">Save your place</p>
-        <h2 className="font-serif-clean text-4xl leading-none">{mode === 'sign-in' ? 'Welcome back.' : 'Make this inquiry yours.'}</h2>
+        <h2 className="font-serif-clean text-4xl leading-none">{mode === 'sign-in' ? 'Welcome back.' : mode === 'forgot-password' ? 'Reset your password.' : 'Make this inquiry yours.'}</h2>
         <p className="mt-4 text-sm leading-relaxed text-[#14213d]/65">
-          {isVerifying ? `Enter the ${OTP_LENGTH}-digit code we sent to your email and create a password for future sign-ins.` : mode === 'sign-in' ? 'Sign in with the password you created for your account.' : 'Create your account, then verify your email before continuing.'}
+          {isVerifying ? `Enter the ${OTP_LENGTH}-digit code we sent to your email and create a password for future sign-ins.` : mode === 'forgot-password' ? 'Enter your email and we will send you a secure password reset link.' : mode === 'sign-in' ? 'Sign in with the password you created for your account.' : 'Create your account, then verify your email before continuing.'}
         </p>
 
         {!isVerifying && <div className="mt-7 mb-4 flex overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f5f5f5] p-1">
@@ -159,7 +181,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
           ))}
         </div>}
 
-        {!isVerifying && <button
+        {mode !== 'forgot-password' && !isVerifying && <button
           type="button"
           onClick={handleGoogleAuth}
           disabled={isLoading}
@@ -184,6 +206,14 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
             {isLoading ? 'Creating account...' : 'Verify and create account'}
             <ArrowRight className="h-4 w-4 text-[#fca311]" />
           </button>
+        </form> : mode === 'forgot-password' ? <form onSubmit={handlePasswordReset} className="space-y-3">
+          <label htmlFor="reset-email" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]">Email address</label>
+          <input id="reset-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="w-full rounded-xl border border-[#e5e5e5] bg-white px-4 py-3 text-sm text-[#14213d] outline-none transition-colors placeholder:text-[#14213d]/50 focus:border-[#fca311]" />
+          <button type="submit" disabled={isLoading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#14213d] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1c3156] disabled:opacity-50">
+            {isLoading ? 'Sending...' : 'Send reset link'}
+            <ArrowRight className="h-4 w-4 text-[#fca311]" />
+          </button>
+          <button type="button" onClick={() => { setMode('sign-in'); setError(''); }} className="w-full text-xs font-semibold text-[#14213d]/65 hover:text-[#14213d]">Back to sign in</button>
         </form> : <form onSubmit={handleEmailAuth} className="space-y-3">
           {mode === 'sign-up' && <>
             <label htmlFor="account-display-name" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]">Your name</label>
@@ -199,6 +229,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
             {isLoading ? 'Please wait...' : mode === 'sign-up' ? 'Send verification code' : 'Sign in with password'}
             <ArrowRight className="h-4 w-4 text-[#fca311]" />
           </button>
+          {mode === 'sign-in' && <button type="button" onClick={() => { setMode('forgot-password'); setError(''); }} className="w-full text-xs font-semibold text-[#14213d]/65 hover:text-[#14213d]">Forgot your password?</button>}
         </form>}
 
         {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-700">

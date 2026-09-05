@@ -59,3 +59,11 @@ export interface GuestProfile {
   createdAt: number;
   selectedAtmospheres: string[];
 }
+
+export type LlmProvider = 'openai' | 'anthropic' | 'gemini';
+
+export interface LlmSettings {
+  provider: LlmProvider;
+  apiKey: string;
+  model: string;
+}
