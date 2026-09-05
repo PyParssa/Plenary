@@ -87,7 +87,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
 
   const handleVerification = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (verificationCode.trim().length !== OTP_LENGTH || isLoading) return;
+    if (verificationCode.trim().length !== OTP_LENGTH || password.length < 6 || isLoading) return;
 
     setError('');
     setIsLoading(true);
@@ -98,6 +98,8 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
         type: 'email',
       });
       if (authError) throw authError;
+      const { error: passwordError } = await supabase.auth.updateUser({ password });
+      if (passwordError) throw passwordError;
       onCreateAccount(email.trim().toLowerCase());
     } catch (authError) {
       console.error('Supabase email verification error:', authError);
@@ -140,7 +142,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
         <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#fca311]">Save your place</p>
         <h2 className="font-serif-clean text-4xl leading-none">{mode === 'sign-in' ? 'Welcome back.' : 'Make this inquiry yours.'}</h2>
         <p className="mt-4 text-sm leading-relaxed text-[#14213d]/65">
-          {isVerifying ? `Enter the ${OTP_LENGTH}-digit code we sent to your email.` : mode === 'sign-in' ? 'Sign in with the password you created for your account.' : 'Create your account, then verify your email before continuing.'}
+          {isVerifying ? `Enter the ${OTP_LENGTH}-digit code we sent to your email and create a password for future sign-ins.` : mode === 'sign-in' ? 'Sign in with the password you created for your account.' : 'Create your account, then verify your email before continuing.'}
         </p>
 
         {!isVerifying && <div className="mt-7 mb-4 flex overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f5f5f5] p-1">
@@ -175,8 +177,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
         {isVerifying ? <form onSubmit={handleVerification} className="space-y-3">
           <label htmlFor="verification-code" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]/55">Verification code</label>
           <input id="verification-code" inputMode="numeric" pattern="[0-9]{8}" maxLength={OTP_LENGTH} required value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, ''))} placeholder="12345678" className="w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-sm tracking-[0.35em] outline-none transition-colors focus:border-[#fca311]" />
-          <button type="submit" disabled={isLoading || verificationCode.length !== OTP_LENGTH} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#14213d] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1c3156] disabled:opacity-50">
-            {isLoading ? 'Verifying...' : 'Verify email'}
+          <label htmlFor="account-password" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]">Create a password</label>
+          <input id="account-password" type="password" minLength={6} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 6 characters" className="w-full rounded-xl border border-[#e5e5e5] bg-white px-4 py-3 text-sm text-[#14213d] outline-none transition-colors placeholder:text-[#14213d]/50 focus:border-[#fca311]" />
+          <button type="submit" disabled={isLoading || verificationCode.length !== OTP_LENGTH || password.length < 6} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#14213d] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1c3156] disabled:opacity-50">
+            {isLoading ? 'Creating account...' : 'Verify and create account'}
             <ArrowRight className="h-4 w-4 text-[#fca311]" />
           </button>
         </form> : <form onSubmit={handleEmailAuth} className="space-y-3">
