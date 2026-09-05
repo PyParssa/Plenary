@@ -10,7 +10,8 @@ import { rankQuestions } from './data/journey';
 import { TopNav } from './components/TopNav';
 import { DeckView } from './components/DeckView';
 import { VaultView } from './components/VaultView';
-import { AuthorStudioView } from './components/AuthorStudioView';
+import { DiscoveryView } from './components/DiscoveryView';
+import { AccountView } from './components/AccountView';
 import { SocraticDrawer } from './components/SocraticDrawer';
 import { SupportModal } from './components/SupportModal';
 import { ShareModal } from './components/ShareModal';
@@ -22,6 +23,7 @@ import { supabase } from './lib/supabase';
 import { applyVouches, loadUserData, removeVouch, saveCard, savePreferences, saveProfile, saveReflection, saveVouch } from './lib/database';
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('deck');
   const [cards, setCards] = useState<QuestionCard[]>(() => {
     const saved = localStorage.getItem('plenary_cards');
     if (saved) {
@@ -35,7 +37,7 @@ export default function App() {
   });
 
   const [authors] = useState(INITIAL_AUTHORS);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('deck');
+  const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
   const [selectedLifeStage, setSelectedLifeStage] = useState<LifeStage>('All Inquiries');
   const [isNightMode, setIsNightMode] = useState(() => localStorage.getItem('plenary_night_mode') === 'true');
   const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(null);
@@ -44,6 +46,19 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  const handleOpenAccount = () => {
+    setActiveTab('account');
+    setIsAccountOpen(true);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUserId(null);
+    setGuestProfile(null);
+    setActiveTab('deck');
+    showToast('You have been logged out.');
+  };
 
   // Socratic Drawer State
   const [selectedReflectionCard, setSelectedReflectionCard] = useState<QuestionCard | null>(null);
@@ -201,6 +216,18 @@ export default function App() {
     setActiveTab(tab);
   };
 
+  const handleSelectDiscoveryAuthor = (authorName: string | null) => {
+    setSelectedAuthor(authorName);
+    setSelectedLifeStage('All Inquiries');
+    setActiveTab('deck');
+  };
+
+  const handleSelectDiscoveryCategory = (category: LifeStage | null) => {
+    setSelectedAuthor(null);
+    setSelectedLifeStage(category ?? 'All Inquiries');
+    setActiveTab('deck');
+  };
+
   const handleUnvouchCard = (cardId: string) => {
     setCards((prev) =>
       prev.map((c) => {
@@ -235,7 +262,7 @@ export default function App() {
     if (userId) void saveReflection(userId, session).catch((error) => console.error('Could not save reflection:', error));
   };
 
-  // Add custom card from Author Studio
+  // Add a custom card from Discovery
   const handleAddCustomCard = (
     newCardData: Omit<QuestionCard, 'id' | 'vouched' | 'vouchCount'>
   ) => {
@@ -255,8 +282,9 @@ export default function App() {
 
   // Filter cards by life stage
   const filteredCards = cards.filter((card) => {
-    if (selectedLifeStage === 'All Inquiries') return true;
-    return card.category === selectedLifeStage;
+    const matchesCategory = selectedLifeStage === 'All Inquiries' || card.category === selectedLifeStage;
+    const matchesAuthor = !selectedAuthor || card.author === selectedAuthor;
+    return matchesCategory && matchesAuthor;
   });
 
   const vouchedCards = cards.filter((c) => c.vouched);
@@ -272,10 +300,13 @@ export default function App() {
         selectedLifeStage={selectedLifeStage}
         onSelectLifeStage={setSelectedLifeStage}
         onOpenSupport={() => setIsSupportOpen(true)}
-        vouchedCount={vouchedCards.length}
+        onOpenAccount={handleOpenAccount}
+        onLogout={handleLogout}
+        vouchedCount={cards.filter((c) => c.vouched).length}
         isNightMode={isNightMode}
-        onToggleNightMode={() => setIsNightMode((current) => !current)}
+        onToggleNightMode={() => setIsNightMode(!isNightMode)}
         accountEmail={guestProfile?.email}
+        accountName={guestProfile?.displayName}
       />
 
       {/* Main Content Body */}
@@ -322,25 +353,35 @@ export default function App() {
             </motion.section>
           )}
 
-          {activeTab === 'authors' && (
+          {activeTab === 'discovery' && (
             <motion.section
-              key="authors-view"
+              key="discovery-view"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
               className="w-full"
             >
-              <AuthorStudioView
+              <DiscoveryView
                 authors={authors}
                 cards={cards}
                 onAddCustomCard={(newCardData) => requireAccount(() => handleAddCustomCard(newCardData))}
-                onSelectAuthorFilter={(authorName) => {
-                  setSelectedLifeStage('All Inquiries');
-                  setActiveTab('deck');
-                  showToast(`Curated inquiries by ${authorName}`);
-                }}
+                onSelectAuthorFilter={handleSelectDiscoveryAuthor}
+                onSelectCategory={handleSelectDiscoveryCategory}
               />
+            </motion.section>
+          )}
+
+          {activeTab === 'account' && (
+            <motion.section
+              key="account-view"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+              className="w-full"
+            >
+              <AccountView profile={guestProfile} />
             </motion.section>
           )}
         </AnimatePresence>

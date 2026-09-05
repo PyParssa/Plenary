@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ActiveTab, LifeStage } from '../types';
-import { Sparkles, Heart, Filter, ChevronDown, Check, User, ShieldCheck, Moon, Sun } from 'lucide-react';
+import { Sparkles, Heart, Filter, ChevronDown, Check, User, ShieldCheck, Moon, Sun, LogOut } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface TopNavProps {
@@ -9,10 +9,13 @@ interface TopNavProps {
   selectedLifeStage: LifeStage;
   onSelectLifeStage: (stage: LifeStage) => void;
   onOpenSupport: () => void;
+  onOpenAccount: () => void;
+  onLogout: () => void;
   vouchedCount: number;
   isNightMode: boolean;
   onToggleNightMode: () => void;
   accountEmail?: string;
+  accountName?: string;
 }
 
 const LIFE_STAGES: LifeStage[] = [
@@ -32,10 +35,13 @@ export const TopNav: React.FC<TopNavProps> = ({
   selectedLifeStage,
   onSelectLifeStage,
   onOpenSupport,
+  onOpenAccount,
+  onLogout,
   vouchedCount,
   isNightMode,
   onToggleNightMode,
   accountEmail,
+  accountName,
 }) => {
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -100,14 +106,14 @@ export const TopNav: React.FC<TopNavProps> = ({
           <button
             id="nav-pill-authors"
             type="button"
-            onClick={() => onTabChange('authors')}
+            onClick={() => onTabChange('discovery')}
             className={`px-7 py-1.5 text-xs rounded-full transition-all duration-200 outline-none ${
-              activeTab === 'authors'
+              activeTab === 'discovery'
                 ? 'bg-white font-bold shadow-xs border border-[#e5e5e5] text-[#14213d]'
                 : 'font-medium opacity-50 hover:opacity-80 text-[#14213d]'
             }`}
           >
-            AUTHOR STUDIO
+            DISCOVERY
           </button>
         </nav>
 
@@ -123,64 +129,6 @@ export const TopNav: React.FC<TopNavProps> = ({
           >
             {isNightMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
-
-          {/* Life Stage Filter Pill */}
-          <div className="relative">
-            <button
-              id="filter-life-stage-button"
-              type="button"
-              onClick={() => {
-                setFilterDropdownOpen(!filterDropdownOpen);
-                setProfileOpen(false);
-              }}
-              className="flex items-center bg-[#e5e5e5]/30 border border-[#e5e5e5] rounded-full px-3.5 sm:px-4 py-1.5 gap-2 cursor-pointer hover:border-[#14213d]/30 text-xs font-medium text-[#14213d] transition-all outline-none"
-            >
-              <span className="max-w-[72px] sm:max-w-[130px] truncate">
-                {selectedLifeStage}
-              </span>
-              <ChevronDown
-                className={`w-3 h-3 opacity-60 transition-transform duration-200 ${
-                  filterDropdownOpen ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
-
-            {/* Filter Dropdown Menu */}
-            {filterDropdownOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-20"
-                  onClick={() => setFilterDropdownOpen(false)}
-                />
-                <div
-                  id="life-stage-dropdown-panel"
-                  className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-[#e5e5e5] shadow-lg py-2 z-30 animate-in fade-in zoom-in-95 duration-150"
-                >
-                  <div className="px-3 py-1.5 text-[10px] font-semibold tracking-wider uppercase text-[#14213d]/40">
-                    Filter Inquiry Dimension
-                  </div>
-                  {LIFE_STAGES.map((stage) => (
-                    <button
-                      key={stage}
-                      type="button"
-                      onClick={() => {
-                        onSelectLifeStage(stage);
-                        setFilterDropdownOpen(false);
-                      }}
-                      className="w-full px-3 py-2 text-left text-xs flex items-center justify-between hover:bg-[#e5e5e5]/40 transition-colors text-[#14213d]"
-                    >
-                      <span className={stage === selectedLifeStage ? 'font-semibold' : ''}>
-                        {stage}
-                      </span>
-                      {stage === selectedLifeStage && (
-                        <Check className="w-3.5 h-3.5 text-[#fca311]" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
 
           {/* Support / Patron Tip Button */}
           <button
@@ -223,7 +171,7 @@ export const TopNav: React.FC<TopNavProps> = ({
                     </div>
                     <div>
                       <div className="text-xs font-bold text-[#14213d] flex items-center gap-1">
-                        {accountEmail ? 'Personal account' : 'Guest mode'}
+                        {accountName || (accountEmail ? 'Personal account' : 'Guest mode')}
                         {accountEmail && <ShieldCheck className="w-3.5 h-3.5 text-[#fca311]" />}
                       </div>
                       <div className="text-[11px] text-[#14213d]/60">{accountEmail ?? 'Browsing freely'}</div>
@@ -263,6 +211,29 @@ export const TopNav: React.FC<TopNavProps> = ({
                       Open My Vault
                     </button>
                   </div>
+                  <div className="pt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenAccount();
+                        setProfileOpen(false);
+                      }}
+                      className="w-full py-1.5 text-center text-xs font-medium rounded-lg border border-[#e5e5e5] text-[#14213d] hover:bg-[#e5e5e5]/40 transition-colors"
+                    >
+                      Account
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onLogout();
+                        setProfileOpen(false);
+                      }}
+                      className="w-full py-1.5 text-center text-xs font-medium rounded-lg border border-[#e5e5e5] text-[#14213d] hover:bg-[#e5e5e5]/40 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <LogOut className="w-3 h-3" />
+                      Log out
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -299,14 +270,14 @@ export const TopNav: React.FC<TopNavProps> = ({
         <button
           id="mobile-nav-authors"
           type="button"
-          onClick={() => onTabChange('authors')}
+          onClick={() => onTabChange('discovery')}
           className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
-            activeTab === 'authors'
+            activeTab === 'discovery'
               ? 'bg-[#14213d] text-white'
               : 'text-[#14213d]/60 hover:text-[#14213d]'
           }`}
         >
-          Author Studio
+          Discovery
         </button>
       </div>
     </header>

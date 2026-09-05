@@ -13,10 +13,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-interface AuthorStudioViewProps {
+interface DiscoveryViewProps {
   authors: AuthorProfile[];
   onAddCustomCard: (newCard: Omit<QuestionCard, 'id' | 'vouched' | 'vouchCount'>) => void;
   onSelectAuthorFilter: (authorName: string) => void;
+  onSelectCategory: (category: LifeStage) => void;
   cards: QuestionCard[];
 }
 
@@ -30,10 +31,11 @@ const LIFE_STAGE_OPTIONS: LifeStage[] = [
   'Midlife Reckoning',
 ];
 
-export const AuthorStudioView: React.FC<AuthorStudioViewProps> = ({
+export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
   authors,
   onAddCustomCard,
   onSelectAuthorFilter,
+  onSelectCategory,
   cards,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -118,7 +120,7 @@ export const AuthorStudioView: React.FC<AuthorStudioViewProps> = ({
             </span>
           </div>
           <h1 className="font-serif-clean text-3xl sm:text-4xl font-normal text-[#14213d]">
-            Author Studio
+            Discovery
           </h1>
           <p className="text-xs sm:text-sm text-[#14213d]/60 mt-1 max-w-xl">
             Verified authors, philosophers, and contemplative voices whose inquiries anchor our collective compass.
@@ -134,6 +136,25 @@ export const AuthorStudioView: React.FC<AuthorStudioViewProps> = ({
           <PenTool className="w-3.5 h-3.5 text-[#fca311]" />
           <span>Craft an Illuminating Card</span>
         </button>
+      </div>
+
+      <div className="py-6 border-b border-[#e5e5e5]">
+        <div className="flex items-center gap-2 mb-3">
+          <BookOpen className="w-3.5 h-3.5 text-[#fca311]" />
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-[#14213d]/60">Browse Categories</h2>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {LIFE_STAGE_OPTIONS.map((stage) => (
+            <button
+              key={stage}
+              type="button"
+              onClick={() => onSelectCategory(stage)}
+              className="px-3 py-1.5 rounded-full border border-[#e5e5e5] bg-white text-xs text-[#14213d]/75 hover:border-[#14213d]/40 hover:text-[#14213d] transition-colors"
+            >
+              {stage}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Author Profiles Grid */}
@@ -204,6 +225,15 @@ export const AuthorStudioView: React.FC<AuthorStudioViewProps> = ({
                 </div>
 
                 <button
+                  type="button"
+                  onClick={() => onSelectAuthorFilter(author.name)}
+                  className="text-xs text-[#14213d] hover:text-black font-semibold flex items-center gap-1 hover:underline underline-offset-4"
+                >
+                  <Eye className="w-3.5 h-3.5 text-[#fca311]" />
+                  <span>View Cards</span>
+                </button>
+
+                <button
                   id={`craft-for-author-${author.id}`}
                   type="button"
                   onClick={() => handleOpenModalWithAuthor(author)}
@@ -247,7 +277,7 @@ export const AuthorStudioView: React.FC<AuthorStudioViewProps> = ({
                       Craft an Illuminating Card
                     </h2>
                     <p className="text-[11px] text-[#14213d]/60">
-                      Author Studio Editorial Submission
+                      Discovery Editorial Submission
                     </p>
                   </div>
                 </div>

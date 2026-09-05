@@ -51,7 +51,7 @@ export interface ReflectionSession {
   completed?: boolean;
 }
 
-export type ActiveTab = 'deck' | 'vault' | 'authors';
+export type ActiveTab = 'deck' | 'vault' | 'discovery' | 'account';
 
 export interface GuestProfile {
   email: string;

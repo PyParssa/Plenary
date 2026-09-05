@@ -45,7 +45,7 @@ export const DeckView: React.FC<DeckViewProps> = ({
           The Deck is Quiet
         </h3>
         <p className="text-xs text-[#14213d]/60 leading-relaxed mb-6">
-          No questions found under this filter. Try selecting 'All Inquiries' or craft a new illuminating card in Author Studio.
+          No questions found under this filter. Try selecting 'All Inquiries' or craft a new illuminating card in Discovery.
         </p>
       </div>
     );
