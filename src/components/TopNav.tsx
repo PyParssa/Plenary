@@ -222,17 +222,19 @@ export const TopNav: React.FC<TopNavProps> = ({
                     >
                       Account
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onLogout();
-                        setProfileOpen(false);
-                      }}
-                      className="w-full py-1.5 text-center text-xs font-medium rounded-lg border border-[#e5e5e5] text-[#14213d] hover:bg-[#e5e5e5]/40 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <LogOut className="w-3 h-3" />
-                      Log out
-                    </button>
+                    {accountEmail && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onLogout();
+                          setProfileOpen(false);
+                        }}
+                        className="w-full py-1.5 text-center text-xs font-medium rounded-lg border border-[#e5e5e5] text-[#14213d] hover:bg-[#e5e5e5]/40 transition-colors flex items-center justify-center gap-1"
+                      >
+                        <LogOut className="w-3 h-3" />
+                        Log out
+                      </button>
+                    )}
                   </div>
                 </div>
               </>

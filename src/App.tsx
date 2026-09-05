@@ -186,11 +186,7 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
-    let oauthCallbackPending = Boolean(
-      new URLSearchParams(window.location.search).get('code') ||
-      window.location.hash.includes('access_token=') ||
-      window.location.hash.includes('error_description=')
-    );
+    let authenticatedUserId: string | null = null;
 
     const hydrateSession = async (
       session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'],
@@ -206,7 +202,7 @@ export default function App() {
           await hydrateSession(currentSession.session, false);
           return;
         }
-        if (oauthCallbackPending) return;
+        if (authenticatedUserId) return;
       }
 
       if (!session?.user?.id) {
@@ -216,7 +212,28 @@ export default function App() {
         return;
       }
 
+      authenticatedUserId = session.user.id;
       setUserId(session.user.id);
+      const sessionEmail = session.user.email ?? '';
+      const sessionDisplayName = typeof session.user.user_metadata?.display_name === 'string'
+        ? session.user.user_metadata.display_name
+        : typeof session.user.user_metadata?.full_name === 'string'
+          ? session.user.user_metadata.full_name
+          : undefined;
+      if (sessionEmail) {
+        const bootstrapResponse = session.access_token
+          ? await fetch('/api/account/bootstrap', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            })
+          : null;
+        if (bootstrapResponse && !bootstrapResponse.ok) {
+          console.error('Could not bootstrap authenticated user profile:', await bootstrapResponse.text());
+        }
+        await saveProfile(session.user.id, sessionEmail, sessionDisplayName).catch((error) => {
+          console.error('Could not create authenticated user profile:', error);
+        });
+      }
       try {
         const saved = await loadUserData(session.user.id);
         if (!isMounted) return;
@@ -244,29 +261,12 @@ export default function App() {
       setIsAuthReady(true);
     };
 
-    const bootstrapAuth = async () => {
-      const callbackCode = new URLSearchParams(window.location.search).get('code');
-      if (callbackCode) {
-        const { data, error } = await supabase.auth.exchangeCodeForSession(callbackCode);
-        if (!error && data.session) {
-          oauthCallbackPending = false;
-          window.history.replaceState({}, document.title, window.location.pathname);
-          await hydrateSession(data.session, false);
-          return;
-        }
-        console.error('Google OAuth callback exchange failed:', error);
-      }
-
-      oauthCallbackPending = false;
-      const { data: { session } } = await supabase.auth.getSession();
-      await hydrateSession(session);
-    };
-
-    void bootstrapAuth();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') authenticatedUserId = null;
       void hydrateSession(session);
     });
+
+    supabase.auth.getSession().then(({ data: { session } }) => void hydrateSession(session));
 
     return () => {
       isMounted = false;
@@ -491,7 +491,7 @@ export default function App() {
       />
 
       <AccountModal
-        isOpen={isAccountOpen || (isAuthReady && !userId && !guestProfile)}
+        isOpen={isAccountOpen}
         selectedAtmospheres={guestProfile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]')}
         onClose={() => {
           setIsAccountOpen(false);

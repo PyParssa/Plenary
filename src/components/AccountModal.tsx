@@ -30,7 +30,12 @@ function describeAuthError(error: unknown, fallback: string): string {
 }
 
 function getAuthRedirectUrl(): string {
-  return window.location.origin.replace('://0.0.0.0:', '://localhost:');
+  const url = new URL(window.location.href);
+  if (url.hostname === '0.0.0.0') url.hostname = 'localhost';
+  url.pathname = '/';
+  url.search = '';
+  url.hash = '';
+  return url.origin;
 }
 
 const OTP_LENGTH = 8;
@@ -111,34 +116,6 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
     }
   };
 
-  const handleGoogleAuth = async () => {
-    setError('');
-    setIsLoading(true);
-
-    try {
-      const { error: authError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: getAuthRedirectUrl(),
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-
-      if (authError) throw authError;
-    } catch (authError) {
-      console.error('Supabase Google authentication error:', authError);
-      const rawMessage = authError instanceof Error ? authError.message : '';
-      const message = rawMessage.toLowerCase().includes('unsupported provider')
-        ? 'Google sign-in is not enabled yet. In Supabase, open Authentication > Providers > Google, enable it, add the Google Client ID and Client Secret, then save.'
-        : describeAuthError(authError, 'Unable to sign in with Google.');
-      setError(message);
-      setIsLoading(false);
-    }
-  };
-
   const handlePasswordReset = async (event: React.FormEvent) => {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
@@ -180,22 +157,6 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
             </button>
           ))}
         </div>}
-
-        {mode !== 'forgot-password' && !isVerifying && <button
-          type="button"
-          onClick={handleGoogleAuth}
-          disabled={isLoading}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#14213d] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1c3156] disabled:opacity-50"
-        >
-          {isLoading ? 'Please wait...' : 'Continue with Google'}
-          <ArrowRight className="h-4 w-4 text-[#fca311]" />
-        </button>}
-
-        <div className="my-4 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[#14213d]/45">
-          <span className="h-px flex-1 bg-[#e5e5e5]" />
-          OR
-          <span className="h-px flex-1 bg-[#e5e5e5]" />
-        </div>
 
         {isVerifying ? <form onSubmit={handleVerification} className="space-y-3">
           <label htmlFor="verification-code" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]/55">Verification code</label>
