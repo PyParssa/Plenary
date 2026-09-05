@@ -7,7 +7,7 @@ interface AccountModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedAtmospheres: string[];
-  onCreateAccount: (email: string) => void;
+  onCreateAccount: (email: string, displayName?: string) => void;
 }
 
 function describeAuthError(error: unknown, fallback: string): string {
@@ -37,6 +37,7 @@ const OTP_LENGTH = 8;
 
 export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, selectedAtmospheres, onCreateAccount }) => {
   const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
@@ -49,7 +50,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
   const handleEmailAuth = async (event: React.FormEvent) => {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || (mode === 'sign-in' && !password) || isLoading) return;
+    if (!normalizedEmail || (mode === 'sign-in' && !password) || (mode === 'sign-up' && !displayName.trim()) || isLoading) return;
 
     setError('');
     setIsLoading(true);
@@ -58,7 +59,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
       if (mode === 'sign-up') {
         const { error: authError } = await supabase.auth.signInWithOtp({
           email: normalizedEmail,
-          options: { shouldCreateUser: true },
+          options: { shouldCreateUser: true, data: { display_name: displayName.trim() } },
         });
 
         if (authError) throw authError;
@@ -100,7 +101,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
       if (authError) throw authError;
       const { error: passwordError } = await supabase.auth.updateUser({ password });
       if (passwordError) throw passwordError;
-      onCreateAccount(email.trim().toLowerCase());
+      onCreateAccount(email.trim().toLowerCase(), displayName.trim());
     } catch (authError) {
       console.error('Supabase email verification error:', authError);
       const message = describeAuthError(authError, 'That verification code is invalid or expired.');
@@ -184,6 +185,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
             <ArrowRight className="h-4 w-4 text-[#fca311]" />
           </button>
         </form> : <form onSubmit={handleEmailAuth} className="space-y-3">
+          {mode === 'sign-up' && <>
+            <label htmlFor="account-display-name" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]">Your name</label>
+            <input id="account-display-name" type="text" required value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="How should we call you?" className="w-full rounded-xl border border-[#e5e5e5] bg-white px-4 py-3 text-sm text-[#14213d] outline-none transition-colors placeholder:text-[#14213d]/50 focus:border-[#fca311]" />
+          </>}
           <label htmlFor="account-email" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]">Email address</label>
           <input id="account-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="w-full rounded-xl border border-[#e5e5e5] bg-white px-4 py-3 text-sm text-[#14213d] outline-none transition-colors placeholder:text-[#14213d]/50 focus:border-[#fca311]" />
           {mode === 'sign-in' && <>

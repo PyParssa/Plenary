@@ -19,6 +19,7 @@ import { JourneyPicker } from './components/JourneyPicker';
 import { Sparkles, CheckCircle2, Bookmark } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { supabase } from './lib/supabase';
+import { applyVouches, loadUserData, removeVouch, saveCard, savePreferences, saveProfile, saveReflection, saveVouch } from './lib/database';
 
 export default function App() {
   const [cards, setCards] = useState<QuestionCard[]>(() => {
@@ -38,6 +39,7 @@ export default function App() {
   const [selectedLifeStage, setSelectedLifeStage] = useState<LifeStage>('All Inquiries');
   const [isNightMode, setIsNightMode] = useState(() => localStorage.getItem('plenary_night_mode') === 'true');
   const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isJourneyOpen, setIsJourneyOpen] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
@@ -103,6 +105,7 @@ export default function App() {
         return c;
       })
     );
+    if (userId) void saveVouch(userId, cardId).catch((error) => console.error('Could not save vouch:', error));
     showToast('Inquiry vouched and anchored in your Vault');
   };
 
@@ -115,12 +118,14 @@ export default function App() {
     setIsAccountOpen(true);
   };
 
-  const handleCreateAccount = (email: string) => {
+  const handleCreateAccount = (email: string, displayName?: string) => {
     setGuestProfile({
       email,
+      displayName,
       createdAt: Date.now(),
       selectedAtmospheres: guestProfile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
     });
+    if (userId) void saveProfile(userId, email, displayName).catch((error) => console.error('Could not save profile:', error));
     setIsAccountOpen(false);
     pendingAction?.();
     setPendingAction(null);
@@ -130,40 +135,47 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    const syncSupabaseSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const hydrateSession = async (session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
       if (!isMounted) return;
 
       if (!session?.user?.email) {
+        setUserId(null);
         setIsAuthReady(true);
         return;
       }
 
-      setGuestProfile((current) => ({
-        email: session.user.email,
-        createdAt: current?.createdAt ?? Date.now(),
-        selectedAtmospheres: current?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
-      }));
-      setIsJourneyOpen(!localStorage.getItem('plenary_journey'));
+      setUserId(session.user.id);
+      try {
+        const saved = await loadUserData(session.user.id);
+        if (!isMounted) return;
+        const selectedAtmospheres = saved.profile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]');
+        setGuestProfile({
+          email: saved.profile?.email ?? session.user.email,
+          displayName: saved.profile?.displayName ?? session.user.user_metadata?.display_name,
+          createdAt: saved.profile?.createdAt ?? Date.now(),
+          selectedAtmospheres,
+        });
+        setCards((current) => saved.cards.length > 0
+          ? applyVouches(saved.cards, saved.vouchedCardIds)
+          : applyVouches(current, saved.vouchedCardIds));
+        setReflectionSessions(saved.reflections);
+        setIsJourneyOpen(selectedAtmospheres.length === 0);
+      } catch (error) {
+        console.error('Could not load account data:', error);
+        setGuestProfile({
+          email: session.user.email,
+          createdAt: Date.now(),
+          selectedAtmospheres: JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
+        });
+        setIsJourneyOpen(!localStorage.getItem('plenary_journey'));
+      }
       setIsAuthReady(true);
     };
 
-    syncSupabaseSession();
+    supabase.auth.getSession().then(({ data: { session } }) => void hydrateSession(session));
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user?.email) {
-        setGuestProfile(null);
-        setIsAuthReady(true);
-        return;
-      }
-
-      setGuestProfile({
-        email: session.user.email,
-        createdAt: Date.now(),
-        selectedAtmospheres: JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
-      });
-      if (_event === 'SIGNED_IN') setIsJourneyOpen(true);
-      setIsAuthReady(true);
+      void hydrateSession(session);
     });
 
     return () => {
@@ -175,6 +187,7 @@ export default function App() {
   const handleJourneyComplete = (selectedIds: string[]) => {
     localStorage.setItem('plenary_journey', JSON.stringify(selectedIds));
     setGuestProfile((current) => (current ? { ...current, selectedAtmospheres: selectedIds } : current));
+    if (userId) void savePreferences(userId, selectedIds).catch((error) => console.error('Could not save preferences:', error));
     setCards((current) => rankQuestions(current, selectedIds));
     setIsJourneyOpen(false);
     showToast('Your first inquiry has been chosen from your path.');
@@ -201,6 +214,7 @@ export default function App() {
         return c;
       })
     );
+    if (userId) void removeVouch(userId, cardId).catch((error) => console.error('Could not remove vouch:', error));
     showToast('Inquiry removed from Vault');
   };
 
@@ -218,6 +232,7 @@ export default function App() {
       ...prev,
       [session.cardId]: session,
     }));
+    if (userId) void saveReflection(userId, session).catch((error) => console.error('Could not save reflection:', error));
   };
 
   // Add custom card from Author Studio
@@ -233,6 +248,7 @@ export default function App() {
     };
 
     setCards((prev) => [newCard, ...prev]);
+    if (userId) void saveCard(userId, newCard).catch((error) => console.error('Could not save card:', error));
     showToast('Illuminating Card published and added to The Deck & Vault!');
     setActiveTab('deck');
   };

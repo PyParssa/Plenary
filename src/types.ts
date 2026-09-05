@@ -55,6 +55,7 @@ export type ActiveTab = 'deck' | 'vault' | 'authors';
 
 export interface GuestProfile {
   email: string;
+  displayName?: string;
   createdAt: number;
   selectedAtmospheres: string[];
 }
