@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { GuestProfile, QuestionCard, ReflectionSession } from '../types';
+import { GuestProfile, QuestionCard, ReflectionSession, UserRole } from '../types';
 
 export async function loadUserData(userId: string): Promise<{
   profile: GuestProfile | null;
@@ -8,7 +8,7 @@ export async function loadUserData(userId: string): Promise<{
   cards: QuestionCard[];
 }> {
   const [profileResult, vouchesResult, reflectionsResult, cardsResult] = await Promise.all([
-    supabase.from('profiles').select('email, display_name, created_at, selected_atmospheres').eq('id', userId).maybeSingle(),
+    supabase.from('profiles').select('email, display_name, created_at, selected_atmospheres, role').eq('id', userId).maybeSingle(),
     supabase.from('card_vouches').select('card_id').eq('user_id', userId),
     supabase.from('reflection_sessions').select('card_id, session').eq('user_id', userId),
     supabase.from('cards').select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries'),
@@ -25,6 +25,7 @@ export async function loadUserData(userId: string): Promise<{
         displayName: profileResult.data.display_name ?? undefined,
         createdAt: new Date(profileResult.data.created_at).getTime(),
         selectedAtmospheres: profileResult.data.selected_atmospheres ?? [],
+        role: (profileResult.data.role ?? 'user') as UserRole,
       }
     : null;
 

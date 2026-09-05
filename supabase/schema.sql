@@ -3,9 +3,18 @@ create table if not exists public.profiles (
   email text not null,
   display_name text,
   selected_atmospheres text[] not null default '{}',
+  role text not null default 'user' check (role in ('user', 'creator', 'manager')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists role text not null default 'user';
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check check (role in ('user', 'creator', 'manager'));
+
+update public.profiles
+set role = 'manager', updated_at = now()
+where lower(email) = 'parssamohammadi@gmail.com';
 
 create table if not exists public.cards (
   id text primary key,
@@ -50,8 +59,14 @@ create policy "Users can update their profile"
 
 create policy "Authenticated users can read cards"
   on public.cards for select to authenticated using (true);
-create policy "Users can create cards"
-  on public.cards for insert to authenticated with check (auth.uid() = created_by);
+drop policy if exists "Users can create cards" on public.cards;
+drop policy if exists "Creators and managers can create cards" on public.cards;
+create policy "Creators and managers can create cards"
+  on public.cards for insert to authenticated
+  with check (
+    auth.uid() = created_by
+    and (select role from public.profiles where id = auth.uid()) in ('creator', 'manager')
+  );
 
 create policy "Users can read their vouches"
   on public.card_vouches for select using (auth.uid() = user_id);
@@ -73,8 +88,12 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email)
-  values (new.id, new.email)
+  insert into public.profiles (id, email, role)
+  values (
+    new.id,
+    new.email,
+    case when lower(new.email) = 'parssamohammadi@gmail.com' then 'manager' else 'user' end
+  )
   on conflict (id) do update set email = excluded.email;
   return new;
 end;

@@ -87,6 +87,10 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
 
     const currentTurn = turn;
     try {
+      if (!apiSettings.apiKey.trim()) {
+        throw new Error('Add your provider API key in Account settings to continue this reflection.');
+      }
+
       // Call server-side Gemini API endpoint
       const response = await fetch('/api/socratic-reflect', {
         method: 'POST',
@@ -102,14 +106,13 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
         }),
       });
 
-      let aiReply = '';
-      if (response.ok) {
-        const data = await response.json();
-        aiReply = data.reply;
-      } else {
-        // Fallback contextual response if server is offline or response not ok
-        aiReply = getContextualSocraticFallback(card, userText, currentTurn);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(data?.error ?? 'The selected AI provider could not complete the reflection.');
       }
+
+      const data = await response.json() as { reply?: string };
+      const aiReply = data.reply ?? 'The AI provider returned an empty response.';
 
       const newAssistantMessage: ChatMessage = {
         id: `ai-${Date.now()}`,
@@ -132,9 +135,10 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
         messages: finalMessages,
         completed: false,
       });
-    } catch {
-      // Offline fallback
-      const aiReply = getContextualSocraticFallback(card ?? cards[0], userText, currentTurn);
+    } catch (error) {
+      const aiReply = error instanceof Error
+        ? error.message
+        : 'The selected AI provider could not complete the reflection.';
       const newAssistantMessage: ChatMessage = {
         id: `ai-${Date.now()}`,
         role: 'assistant',
@@ -144,11 +148,11 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
 
       const finalMessages = [...updatedMessages, newAssistantMessage];
       setMessages(finalMessages);
-      setTurn(currentTurn + 1);
+      setTurn(currentTurn);
 
       onSaveSession({
         cardId: card?.id ?? '__vault__',
-        turnsCompleted: currentTurn,
+        turnsCompleted: Math.max(0, currentTurn - 1),
         maxTurns: 0,
         messages: finalMessages,
         completed: false,
@@ -345,36 +349,3 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
     </AnimatePresence>
   );
 };
-
-// High-caliber Socratic fallback logic when offline or server is warming up
-function getContextualSocraticFallback(
-  card: QuestionCard,
-  userText: string,
-  turn: number
-): string {
-  const words = userText.toLowerCase();
-
-  if (turn === 1) {
-    return `Notice what you just highlighted. You speak of "${userText.slice(
-      0,
-      40
-    )}..." If you peel back the practical reasons, what belief about your own worth is silently steering this reaction?`;
-  }
-
-  if (turn === 2) {
-    if (words.includes('fear') || words.includes('fail') || words.includes('afraid')) {
-      return `Fear is often our mind's dramatic exaggeration of physical harm when only ego is at stake. How does ${card.author}'s premise—that failure is rarely fatal—alter your willingness to take the next step?`;
-    }
-    return `There is a distinct tension between what you know intellectually and what your habits allow. What would happen if you ceased trying to resolve this tension immediately and simply stood beside it?`;
-  }
-
-  if (turn === 3) {
-    return `If you looked back at this specific dilemma ten years from today, would you mourn the discomfort of having taken action, or the polite comfort of staying silent?`;
-  }
-
-  if (turn === 4) {
-    return `Notice how your focus has shifted during our turns. What is the single, non-negotiable boundary you must set today to honor the clarity you just described?`;
-  }
-
-  return `We have completed our five turns. Take a breath. The question was never meant to be solved like an arithmetic problem; it is a lens to live with. May this clarity stay close to your hands today.`;
-}

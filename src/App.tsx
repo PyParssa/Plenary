@@ -37,7 +37,6 @@ export default function App() {
   });
 
   const [authors] = useState(INITIAL_AUTHORS);
-  const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
   const [selectedLifeStage, setSelectedLifeStage] = useState<LifeStage>('All Inquiries');
   const [isNightMode, setIsNightMode] = useState(() => localStorage.getItem('plenary_night_mode') === 'true');
   const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(null);
@@ -171,13 +170,15 @@ export default function App() {
   };
 
   const handleCreateAccount = (email: string, displayName?: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
     setGuestProfile({
-      email,
+      email: normalizedEmail,
       displayName,
       createdAt: Date.now(),
       selectedAtmospheres: guestProfile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
+      role: guestProfile?.role ?? (normalizedEmail === 'parssamohammadi@gmail.com' ? 'manager' : 'user'),
     });
-    if (userId) void saveProfile(userId, email, displayName).catch((error) => console.error('Could not save profile:', error));
+    if (userId) void saveProfile(userId, normalizedEmail, displayName).catch((error) => console.error('Could not save profile:', error));
     setIsAccountOpen(false);
     pendingAction?.();
     setPendingAction(null);
@@ -243,6 +244,7 @@ export default function App() {
           displayName: saved.profile?.displayName ?? session.user.user_metadata?.display_name,
           createdAt: saved.profile?.createdAt ?? Date.now(),
           selectedAtmospheres,
+          role: saved.profile?.role ?? 'user',
         });
         setCards((current) => saved.cards.length > 0
           ? applyVouches(saved.cards, saved.vouchedCardIds)
@@ -255,6 +257,7 @@ export default function App() {
           email: session.user.email,
           createdAt: Date.now(),
           selectedAtmospheres: JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
+          role: sessionEmail.toLowerCase() === 'parssamohammadi@gmail.com' ? 'manager' : 'user',
         });
         setIsJourneyOpen(!localStorage.getItem('plenary_journey'));
       }
@@ -292,14 +295,12 @@ export default function App() {
   };
 
   const handleSelectDiscoveryAuthor = (authorName: string | null) => {
-    setSelectedAuthor(authorName);
     setSelectedLifeStage('All Inquiries');
     setActiveTab('deck');
   };
 
   const handleSelectDiscoveryCategory = (category: LifeStage | null) => {
-    setSelectedAuthor(null);
-    setSelectedLifeStage(category ?? 'All Inquiries');
+    setSelectedLifeStage('All Inquiries');
     setActiveTab('deck');
   };
 
@@ -341,6 +342,11 @@ export default function App() {
   const handleAddCustomCard = (
     newCardData: Omit<QuestionCard, 'id' | 'vouched' | 'vouchCount'>
   ) => {
+    if (!guestProfile || !['creator', 'manager'].includes(guestProfile.role)) {
+      showToast('Only creators and managers can publish cards.');
+      return;
+    }
+
     const newCard: QuestionCard = {
       ...newCardData,
       id: `q-custom-${Date.now()}`,
@@ -354,13 +360,6 @@ export default function App() {
     showToast('Illuminating Card published and added to The Deck & Vault!');
     setActiveTab('deck');
   };
-
-  // Filter cards by life stage
-  const filteredCards = cards.filter((card) => {
-    const matchesCategory = selectedLifeStage === 'All Inquiries' || card.category === selectedLifeStage;
-    const matchesAuthor = !selectedAuthor || card.author === selectedAuthor;
-    return matchesCategory && matchesAuthor;
-  });
 
   const vouchedCards = cards.filter((c) => c.vouched);
 
@@ -397,7 +396,7 @@ export default function App() {
               className="w-full flex-1 flex flex-col items-center justify-center"
             >
               <DeckView
-                cards={filteredCards}
+                cards={cards}
                 onVouchCard={(cardId) => requireAccount(() => handleVouchCard(cardId))}
                 onUnvouchCard={(cardId) => requireAccount(() => handleUnvouchCard(cardId))}
                 onOpenReflection={handleOpenReflection}
@@ -444,6 +443,7 @@ export default function App() {
               <DiscoveryView
                 authors={authors}
                 cards={cards}
+                canCreateCards={guestProfile?.role === 'creator' || guestProfile?.role === 'manager'}
                 onAddCustomCard={(newCardData) => requireAccount(() => handleAddCustomCard(newCardData))}
                 onSelectAuthorFilter={handleSelectDiscoveryAuthor}
                 onSelectCategory={handleSelectDiscoveryCategory}

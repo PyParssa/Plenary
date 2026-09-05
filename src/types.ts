@@ -8,6 +8,8 @@ export type LifeStage =
   | 'Midlife Reckoning'
   | 'Mortality & Meaning';
 
+export type UserRole = 'user' | 'creator' | 'manager';
+
 export interface QuestionCard {
   id: string;
   category: LifeStage;
@@ -58,6 +60,7 @@ export interface GuestProfile {
   displayName?: string;
   createdAt: number;
   selectedAtmospheres: string[];
+  role: UserRole;
 }
 
 export type LlmProvider = 'openai' | 'anthropic' | 'gemini';

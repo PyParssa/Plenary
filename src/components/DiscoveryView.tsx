@@ -19,6 +19,7 @@ interface DiscoveryViewProps {
   onSelectAuthorFilter: (authorName: string) => void;
   onSelectCategory: (category: LifeStage) => void;
   cards: QuestionCard[];
+  canCreateCards: boolean;
 }
 
 const LIFE_STAGE_OPTIONS: LifeStage[] = [
@@ -37,6 +38,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
   onSelectAuthorFilter,
   onSelectCategory,
   cards,
+  canCreateCards,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
@@ -127,15 +129,17 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
           </p>
         </div>
 
-        <button
-          id="craft-illuminating-card-button"
-          type="button"
-          onClick={() => handleOpenModalWithAuthor()}
-          className="px-5 py-2.5 rounded-full bg-[#14213d] hover:bg-black text-white text-xs font-medium flex items-center gap-2 transition-colors shadow-xs"
-        >
-          <PenTool className="w-3.5 h-3.5 text-[#fca311]" />
-          <span>Craft an Illuminating Card</span>
-        </button>
+        {canCreateCards && (
+          <button
+            id="craft-illuminating-card-button"
+            type="button"
+            onClick={() => handleOpenModalWithAuthor()}
+            className="px-5 py-2.5 rounded-full bg-[#14213d] hover:bg-black text-white text-xs font-medium flex items-center gap-2 transition-colors shadow-xs"
+          >
+            <PenTool className="w-3.5 h-3.5 text-[#fca311]" />
+            <span>Craft an Illuminating Card</span>
+          </button>
+        )}
       </div>
 
       <div className="py-6 border-b border-[#e5e5e5]">
@@ -233,15 +237,17 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                   <span>View Cards</span>
                 </button>
 
-                <button
-                  id={`craft-for-author-${author.id}`}
-                  type="button"
-                  onClick={() => handleOpenModalWithAuthor(author)}
-                  className="text-xs text-[#14213d] hover:text-black font-semibold flex items-center gap-1 hover:underline underline-offset-4"
-                >
-                  <Plus className="w-3.5 h-3.5 text-[#fca311]" />
-                  <span>Contribute Card</span>
-                </button>
+                {canCreateCards && (
+                  <button
+                    id={`craft-for-author-${author.id}`}
+                    type="button"
+                    onClick={() => handleOpenModalWithAuthor(author)}
+                    className="text-xs text-[#14213d] hover:text-black font-semibold flex items-center gap-1 hover:underline underline-offset-4"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-[#fca311]" />
+                    <span>Contribute Card</span>
+                  </button>
+                )}
               </div>
             </div>
           );
