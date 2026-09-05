@@ -18,6 +18,7 @@ import { AccountModal } from './components/AccountModal';
 import { JourneyPicker } from './components/JourneyPicker';
 import { Sparkles, CheckCircle2, Bookmark } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { supabase } from './lib/supabase';
 
 export default function App() {
   const [cards, setCards] = useState<QuestionCard[]>(() => {
@@ -36,16 +37,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('deck');
   const [selectedLifeStage, setSelectedLifeStage] = useState<LifeStage>('All Inquiries');
   const [isNightMode, setIsNightMode] = useState(() => localStorage.getItem('plenary_night_mode') === 'true');
-  const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(() => {
-    const saved = localStorage.getItem('plenary_profile');
-    if (!saved) return null;
-    try {
-      return JSON.parse(saved);
-    } catch {
-      return null;
-    }
-  });
-  const [isJourneyOpen, setIsJourneyOpen] = useState(() => !localStorage.getItem('plenary_journey'));
+  const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(null);
+  const [isJourneyOpen, setIsJourneyOpen] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
@@ -132,6 +126,51 @@ export default function App() {
     setPendingAction(null);
     showToast('Account created. Your inquiry is now yours to keep.');
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncSupabaseSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!isMounted) return;
+
+      if (!session?.user?.email) {
+        setIsAuthReady(true);
+        return;
+      }
+
+      setGuestProfile((current) => ({
+        email: session.user.email,
+        createdAt: current?.createdAt ?? Date.now(),
+        selectedAtmospheres: current?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
+      }));
+      setIsJourneyOpen(!localStorage.getItem('plenary_journey'));
+      setIsAuthReady(true);
+    };
+
+    syncSupabaseSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user?.email) {
+        setGuestProfile(null);
+        setIsAuthReady(true);
+        return;
+      }
+
+      setGuestProfile({
+        email: session.user.email,
+        createdAt: Date.now(),
+        selectedAtmospheres: JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
+      });
+      if (_event === 'SIGNED_IN') setIsJourneyOpen(true);
+      setIsAuthReady(true);
+    });
+
+    return () => {
+      isMounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   const handleJourneyComplete = (selectedIds: string[]) => {
     localStorage.setItem('plenary_journey', JSON.stringify(selectedIds));
@@ -316,7 +355,7 @@ export default function App() {
       />
 
       <AccountModal
-        isOpen={isAccountOpen}
+        isOpen={isAccountOpen || (isAuthReady && !guestProfile)}
         selectedAtmospheres={guestProfile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]')}
         onClose={() => {
           setIsAccountOpen(false);

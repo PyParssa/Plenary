@@ -1,0 +1,74 @@
+const SHEET_ID = 'PASTE_YOUR_GOOGLE_SHEET_ID_HERE';
+const SHEET_TAB = 'Signups';
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function getSignupSheet() {
+  const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_TAB);
+  if (!sheet) throw new Error('Missing Signups tab');
+  return sheet;
+}
+
+function userExists(email) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) return false;
+
+  const sheet = getSignupSheet();
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i += 1) {
+    const rowEmail = normalizeEmail(values[i][1]);
+    if (rowEmail && rowEmail === normalizedEmail) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function doPost(event) {
+  const body = JSON.parse(event.postData.contents || '{}');
+  const expectedSecret = PropertiesService.getScriptProperties().getProperty('PLENARY_WEBHOOK_SECRET');
+
+  if (!expectedSecret || body.secret !== expectedSecret) {
+    return jsonResponse({ ok: false, error: 'Unauthorized' });
+  }
+
+  if (body.action === 'send_verification_code') {
+    GmailApp.sendEmail(
+      body.email,
+      'Your Plenary verification code',
+      `Your Plenary verification code is ${body.code}. It expires in 10 minutes.`,
+      { name: 'Plenary' },
+    );
+    return jsonResponse({ ok: true });
+  }
+
+  if (body.action === 'lookup_user') {
+    const email = normalizeEmail(body.email);
+    return jsonResponse({ ok: true, exists: !!email && userExists(email), email });
+  }
+
+  if (body.action !== 'append_signup') return jsonResponse({ ok: false, error: 'Unknown action' });
+
+  const email = normalizeEmail(body.email);
+  if (!email) return jsonResponse({ ok: false, error: 'Missing email' });
+
+  const sheet = getSignupSheet();
+  if (userExists(email)) {
+    return jsonResponse({ ok: false, error: 'Email already exists' });
+  }
+
+  sheet.appendRow([
+    body.createdAt || new Date().toISOString(),
+    email,
+    (body.selectedAtmospheres || []).join(', '),
+  ]);
+
+  return jsonResponse({ ok: true });
+}
+
+function jsonResponse(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
+}

@@ -118,6 +118,16 @@ body {
   color: rgb(245 241 232 / 0.4);
 }
 
+.auth-mode-toggle.is-active {
+  background-color: #14213d !important;
+  color: #ffffff !important;
+}
+
+.auth-mode-toggle.is-inactive {
+  background-color: #ffffff !important;
+  color: #14213d !important;
+}
+
 .night-mode ::-webkit-scrollbar-track {
   background: #101820;
 }

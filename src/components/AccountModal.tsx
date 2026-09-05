@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ArrowRight, Mail, X } from 'lucide-react';
+import { ArrowRight, Mail } from 'lucide-react';
 import { motion } from 'motion/react';
+import { supabase } from '../lib/supabase';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -9,59 +10,125 @@ interface AccountModalProps {
   onCreateAccount: (email: string) => void;
 }
 
+function describeAuthError(error: unknown, fallback: string): string {
+  if (!error || typeof error !== 'object') return fallback;
+
+  const details = error as {
+    message?: unknown;
+    code?: unknown;
+    status?: unknown;
+    name?: unknown;
+  };
+  const message = typeof details.message === 'string' ? details.message : fallback;
+  const metadata = [
+    typeof details.name === 'string' ? `name: ${details.name}` : '',
+    typeof details.code === 'string' ? `code: ${details.code}` : '',
+    typeof details.status === 'number' ? `status: ${details.status}` : '',
+  ].filter(Boolean);
+
+  return metadata.length > 0 ? `${message} (${metadata.join(', ')})` : message;
+}
+
+function getAuthRedirectUrl(): string {
+  return window.location.origin.replace('://0.0.0.0:', '://localhost:');
+}
+
+const OTP_LENGTH = 8;
+
 export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, selectedAtmospheres, onCreateAccount }) => {
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<'email' | 'code'>('email');
-  const [developmentCode, setDevelopmentCode] = useState<string | undefined>();
+  const [password, setPassword] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-up');
+  const [isVerifying, setIsVerifying] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleEmailAuth = async (event: React.FormEvent) => {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || isLoading) return;
+    if (!normalizedEmail || (mode === 'sign-in' && !password) || isLoading) return;
+
     setError('');
     setIsLoading(true);
+
     try {
-      const response = await fetch('/api/auth/request-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Unable to send the code.');
-      setDevelopmentCode(data.developmentCode);
-      setStep('code');
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to send the code.');
+      if (mode === 'sign-up') {
+        const { error: authError } = await supabase.auth.signInWithOtp({
+          email: normalizedEmail,
+          options: { shouldCreateUser: true },
+        });
+
+        if (authError) throw authError;
+        setIsVerifying(true);
+        setError(`Check your email for the ${OTP_LENGTH}-digit verification code.`);
+      } else {
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
+        if (authError) throw authError;
+        onCreateAccount(normalizedEmail);
+      }
+    } catch (authError) {
+      console.error('Supabase email authentication error:', authError);
+      const rawMessage = authError instanceof Error ? authError.message : '';
+      const exactMessage = describeAuthError(authError, 'Unable to authenticate with email.');
+      const message = rawMessage.toLowerCase().includes('rate limit')
+        ? `Supabase rate limit: ${exactMessage}. Wait a few minutes before requesting another code.`
+        : exactMessage;
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVerify = async (event: React.FormEvent) => {
+  const handleVerification = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (code.length !== 6 || isLoading) return;
+    if (verificationCode.trim().length !== OTP_LENGTH || isLoading) return;
+
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), code, selectedAtmospheres }),
+      const { error: authError } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: verificationCode.trim(),
+        type: 'email',
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'That code could not be verified.');
+      if (authError) throw authError;
       onCreateAccount(email.trim().toLowerCase());
-      setStep('email');
-      setCode('');
-      setDevelopmentCode(undefined);
-    } catch (verificationError) {
-      setError(verificationError instanceof Error ? verificationError.message : 'That code could not be verified.');
+    } catch (authError) {
+      console.error('Supabase email verification error:', authError);
+      const message = describeAuthError(authError, 'That verification code is invalid or expired.');
+      setError(message);
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: getAuthRedirectUrl(),
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (authError) throw authError;
+    } catch (authError) {
+      console.error('Supabase Google authentication error:', authError);
+      const message = describeAuthError(authError, 'Unable to sign in with Google.');
+      setError(message);
       setIsLoading(false);
     }
   };
@@ -69,30 +136,68 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#14213d]/70 px-4 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative w-full max-w-md rounded-[28px] bg-white p-7 text-[#14213d] shadow-2xl sm:p-9">
-        <button type="button" onClick={onClose} aria-label="Close account dialog" className="absolute right-5 top-5 rounded-full p-2 text-[#14213d]/45 hover:bg-[#e5e5e5]/40 hover:text-[#14213d]">
-          <X className="h-4 w-4" />
-        </button>
         <div className="mb-7 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fca311]/15 text-[#fca311]"><Mail className="h-5 w-5" /></div>
         <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#fca311]">Save your place</p>
-        <h2 className="font-serif-clean text-4xl leading-none">Make this inquiry yours.</h2>
-        <p className="mt-4 text-sm leading-relaxed text-[#14213d]/65">You are currently exploring as a guest. Verify your email to save reflections, vouches, and your personal starting point.</p>
-        {step === 'email' ? (
-          <form onSubmit={handleSubmit} className="mt-7">
-            <label htmlFor="account-email" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]/55">Email address</label>
-            <input id="account-email" type="email" required autoFocus value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-sm outline-none transition-colors focus:border-[#fca311]" />
-            <button type="submit" disabled={isLoading} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#14213d] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1c3156] disabled:opacity-50">{isLoading ? 'Sending code...' : 'Email me a code'} <ArrowRight className="h-4 w-4 text-[#fca311]" /></button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerify} className="mt-7">
-            <label htmlFor="verification-code" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]/55">6-digit code sent to {email}</label>
-            <input id="verification-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required autoFocus value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))} placeholder="000000" className="w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-center font-mono text-xl tracking-[0.4em] outline-none transition-colors focus:border-[#fca311]" />
-            {developmentCode && <p className="mt-2 text-xs text-[#fca311]">Development code: {developmentCode}</p>}
-            <button type="submit" disabled={isLoading || code.length !== 6} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#14213d] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1c3156] disabled:opacity-50">{isLoading ? 'Verifying...' : 'Verify and create account'} <ArrowRight className="h-4 w-4 text-[#fca311]" /></button>
-            <button type="button" onClick={() => { setStep('email'); setError(''); }} className="mt-3 w-full text-xs text-[#14213d]/55 hover:text-[#14213d]">Use a different email</button>
-          </form>
-        )}
-        {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
-        <p className="mt-4 text-center text-[10px] text-[#14213d]/45">Codes expire after 10 minutes.</p>
+        <h2 className="font-serif-clean text-4xl leading-none">{mode === 'sign-in' ? 'Welcome back.' : 'Make this inquiry yours.'}</h2>
+        <p className="mt-4 text-sm leading-relaxed text-[#14213d]/65">
+          {isVerifying ? `Enter the ${OTP_LENGTH}-digit code we sent to your email.` : mode === 'sign-in' ? 'Sign in with the password you created for your account.' : 'Create your account, then verify your email before continuing.'}
+        </p>
+
+        {!isVerifying && <div className="mt-7 mb-4 flex overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f5f5f5] p-1">
+          {(['sign-up', 'sign-in'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => { setMode(option); setError(''); }}
+              className={`auth-mode-toggle flex-1 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition ${mode === option ? 'is-active' : 'is-inactive'}`}
+            >
+              {option === 'sign-up' ? 'Sign up' : 'Sign in'}
+            </button>
+          ))}
+        </div>}
+
+        {!isVerifying && <button
+          type="button"
+          onClick={handleGoogleAuth}
+          disabled={isLoading}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#14213d] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1c3156] disabled:opacity-50"
+        >
+          {isLoading ? 'Please wait...' : 'Continue with Google'}
+          <ArrowRight className="h-4 w-4 text-[#fca311]" />
+        </button>}
+
+        <div className="my-4 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[#14213d]/45">
+          <span className="h-px flex-1 bg-[#e5e5e5]" />
+          OR
+          <span className="h-px flex-1 bg-[#e5e5e5]" />
+        </div>
+
+        {isVerifying ? <form onSubmit={handleVerification} className="space-y-3">
+          <label htmlFor="verification-code" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]/55">Verification code</label>
+          <input id="verification-code" inputMode="numeric" pattern="[0-9]{8}" maxLength={OTP_LENGTH} required value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, ''))} placeholder="12345678" className="w-full rounded-xl border border-[#e5e5e5] px-4 py-3 text-sm tracking-[0.35em] outline-none transition-colors focus:border-[#fca311]" />
+          <button type="submit" disabled={isLoading || verificationCode.length !== OTP_LENGTH} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#14213d] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1c3156] disabled:opacity-50">
+            {isLoading ? 'Verifying...' : 'Verify email'}
+            <ArrowRight className="h-4 w-4 text-[#fca311]" />
+          </button>
+        </form> : <form onSubmit={handleEmailAuth} className="space-y-3">
+          <label htmlFor="account-email" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]">Email address</label>
+          <input id="account-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="w-full rounded-xl border border-[#e5e5e5] bg-white px-4 py-3 text-sm text-[#14213d] outline-none transition-colors placeholder:text-[#14213d]/50 focus:border-[#fca311]" />
+          {mode === 'sign-in' && <>
+            <label htmlFor="account-password" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-[#14213d]">Password</label>
+            <input id="account-password" type="password" minLength={6} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Your password" className="w-full rounded-xl border border-[#e5e5e5] bg-white px-4 py-3 text-sm text-[#14213d] outline-none transition-colors placeholder:text-[#14213d]/50 focus:border-[#fca311]" />
+          </>}
+          <button type="submit" disabled={isLoading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#14213d] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1c3156] disabled:opacity-50">
+            {isLoading ? 'Please wait...' : mode === 'sign-up' ? 'Send verification code' : 'Sign in with password'}
+            <ArrowRight className="h-4 w-4 text-[#fca311]" />
+          </button>
+        </form>}
+
+        {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-700">
+          <p className="font-semibold">Authentication error</p>
+          <p className="mt-1 break-words">{error}</p>
+          <p className="mt-2 text-[10px] text-red-600/75">More details are available in the browser console.</p>
+        </div>}
+        <p className="mt-4 text-center text-[10px] text-[#14213d]/45">Secure auth is handled by Supabase.</p>
       </motion.div>
     </div>
   );
