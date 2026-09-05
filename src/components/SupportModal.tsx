@@ -1,6 +1,13 @@
-import React, { useState } from 'react';
-import { Heart, Sparkles, X, Check, Coffee } from 'lucide-react';
+import React from 'react';
+import { Heart, X, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+const SOLANA_WALLET_ADDRESS = 'ExHycmN3JJH2S3MuLjVLsGigz6PaaEkwsnb3KSxi9dQJ';
+const WALLET_LINKS = [
+  { name: 'Phantom', url: 'https://phantom.app/' },
+  { name: 'Solflare', url: 'https://solflare.com/' },
+  { name: 'Trust Wallet', url: 'https://trustwallet.com/' },
+];
 
 interface SupportModalProps {
   isOpen: boolean;
@@ -8,18 +15,7 @@ interface SupportModalProps {
 }
 
 export const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose }) => {
-  const [selectedTier, setSelectedTier] = useState<number>(5);
-  const [tipped, setTipped] = useState<boolean>(false);
-
   if (!isOpen) return null;
-
-  const handleTip = () => {
-    setTipped(true);
-    setTimeout(() => {
-      setTipped(false);
-      onClose();
-    }, 1800);
-  };
 
   return (
     <AnimatePresence>
@@ -57,52 +53,28 @@ export const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose }) =
             Plenary is an unhurried, ad-free sanctuary for philosophical inquiry. Your patron support sustains open access for thinkers worldwide.
           </p>
 
-          {tipped ? (
-            <div className="py-6 flex flex-col items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-[#14213d] text-white flex items-center justify-center animate-bounce">
-                <Check className="w-5 h-5 text-[#fca311]" />
-              </div>
-              <p className="text-xs font-semibold text-[#14213d]">
-                Heartfelt gratitude for holding this ember.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-3 gap-2.5 mb-6">
-                {[3, 5, 12].map((amount) => (
-                  <button
-                    key={amount}
-                    type="button"
-                    onClick={() => setSelectedTier(amount)}
-                    className={`py-3 px-2 rounded-2xl border text-xs font-semibold flex flex-col items-center gap-1 transition-all ${
-                      selectedTier === amount
-                        ? 'border-[#14213d] bg-[#14213d] text-white shadow-xs scale-102'
-                        : 'border-[#e5e5e5] bg-white text-[#14213d] hover:border-[#14213d]/40'
-                    }`}
-                  >
-                    <span className="font-mono text-sm">${amount}</span>
-                    <span className={`text-[10px] font-normal ${selectedTier === amount ? 'text-white/70' : 'text-[#14213d]/50'}`}>
-                      {amount === 3 ? 'Ember' : amount === 5 ? 'Vessel' : 'Patron'}
-                    </span>
-                  </button>
-                ))}
-              </div>
+          <div className="mb-5 rounded-2xl bg-[#14213d] px-4 py-4 text-left text-white shadow-inner">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#fca311]">Solana wallet address</p>
+            <p className="mt-2 break-all font-mono text-xs font-semibold leading-relaxed text-white">
+              {SOLANA_WALLET_ADDRESS}
+            </p>
+          </div>
 
-              <button
-                id="confirm-support-tip-btn"
-                type="button"
-                onClick={handleTip}
-                className="w-full py-2.5 rounded-full bg-[#fca311] hover:bg-[#e5950d] text-[#14213d] text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+          <p className="mb-3 text-left text-[11px] font-semibold text-[#14213d]/70">Send SOL with your wallet</p>
+          <div className="grid grid-cols-3 gap-2">
+            {WALLET_LINKS.map((wallet) => (
+              <a
+                key={wallet.name}
+                href={wallet.url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex min-h-12 items-center justify-center gap-1 rounded-xl border border-[#14213d]/20 px-2 text-center text-[11px] font-semibold text-[#14213d] transition-colors hover:border-[#fca311] hover:bg-[#fca311]/10"
               >
-                <Coffee className="w-4 h-4" />
-                <span>Tip ${selectedTier} to Support Inquiry</span>
-              </button>
-
-              <p className="text-[10px] text-[#14213d]/40 mt-3">
-                No subscription required • One-time patron gift
-              </p>
-            </>
-          )}
+                <span>{wallet.name}</span>
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
+            ))}
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>
