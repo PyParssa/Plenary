@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QuestionCard, ChatMessage, LlmSettings, ReflectionSession } from '../types';
 import { X, Send, Sparkles, Bot, User, Download, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getApiUrl } from '../lib/api';
 
 interface SocraticDrawerProps {
   isOpen: boolean;
@@ -92,7 +93,7 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
       }
 
       // Call server-side Gemini API endpoint
-      const response = await fetch('/api/socratic-reflect', {
+      const response = await fetch(getApiUrl('/api/socratic-reflect'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

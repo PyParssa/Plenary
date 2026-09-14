@@ -1,172 +1,214 @@
 # Plenary Project
 
-A full-stack web application built with React, Vite, TypeScript, and Node.js with Express, featuring AI integration.
+A decoupled, full-stack web application featuring an inquiry card deck and Socratic AI reflection engine:
+- **Frontend**: Single Page Application built with React 19, Vite, Tailwind CSS, Motion, and Lucide React, configured for deployment on **Vercel**.
+- **Backend**: High-performance asynchronous API built with **FastAPI** (Python), CORS middleware, multi-provider LLM clients (OpenAI, Anthropic, Gemini), and Supabase admin operations, configured for deployment on **Render**.
+
+---
 
 ## Table of Contents
 
--   [Features](#features)
--   [Tech Stack](#tech-stack)
--   [Getting Started](#getting-started)
-    -   [Prerequisites](#prerequisites)
-    -   [Installation](#installation)
-    -   [Environment Variables](#environment-variables)
-    -   [Running the Development Server](#running-the-development-server)
-    -   [Building for Production](#building-for-production)
--   [Project Structure](#project-structure)
--   [Contributing](#contributing)
--   [License](#license)
--   [Support Parssa](#support-parssa)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Local Development](#local-development)
+  - [1. Backend Setup (FastAPI)](#1-backend-setup-fastapi)
+  - [2. Frontend Setup (React + Vite)](#2-frontend-setup-react--vite)
+- [Deployment Guide](#deployment-guide)
+  - [Deploying the Backend to Render](#deploying-the-backend-to-render)
+  - [Deploying the Frontend to Vercel](#deploying-the-frontend-to-vercel)
+- [Environment Variables](#environment-variables)
+- [License & Support](#license--support)
 
-## Features
+---
 
-This project appears to include components for:
--   **Author Studio**: For content creation or management.
--   **Deck View**: Likely for presentations or structured content display.
--   **Share Modal**: For sharing content.
--   **Socratic Drawer**: Possibly an AI-powered conversational interface.
--   **Support Modal**: For user support or feedback.
--   **Top Navigation**: Standard navigation bar.
--   **Vault View**: A secure or private content area.
--   **Vouch Button**: Functionality for endorsements or approvals.
+## Architecture
 
-## Tech Stack
-
-**Frontend:**
--   **React 19**: A JavaScript library for building user interfaces.
--   **Vite**: A fast build tool that provides a leaner and faster development experience for modern web projects.
--   **TypeScript**: A superset of JavaScript that adds static types.
--   **Tailwind CSS**: A utility-first CSS framework for rapidly building custom designs.
--   **Motion**: A production-ready motion library for React.
-
-**Backend:**
--   **Node.js**: A JavaScript runtime built on Chrome's V8 JavaScript engine.
--   **Express**: A fast, unopinionated, minimalist web framework for Node.js.
--   **TypeScript**: For type-safe backend development.
--   **@google/genai**: Google's Generative AI SDK, indicating AI capabilities.
--   **dotenv**: To load environment variables from a `.env` file.
-
-**Tooling:**
--   **esbuild**: An extremely fast JavaScript bundler and minifier.
--   **tsx**: Seamlessly runs TypeScript & ESM in Node.js.
-
-## Getting Started
-
-Follow these instructions to set up and run the project locally.
-
-### Prerequisites
-
--   Node.js (LTS recommended)
--   npm, yarn, or bun (bun is used in `bun.lock`, so it's a good choice)
-
-### Installation
-
-1.  Clone the repository:
-    ```bash
-    git clone <repository-url>
-    cd Plenary
-    ```
-2.  Install dependencies:
-    ```bash
-    bun install # or npm install or yarn install
-    ```
-
-### Environment Variables
-
-Create a `.env` file in the root of the project based on `.env.example`. This file will contain sensitive information and configuration specific to your environment.
-
-Example `.env`:
 ```
-VITE_API_URL=http://localhost:3000
-GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY
-RESEND_API_KEY=re_...
-RESEND_FROM_EMAIL=Plenary <noreply@your-verified-domain.com>
-GOOGLE_SHEETS_WEBHOOK_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
-GOOGLE_SHEETS_WEBHOOK_SECRET=use-a-long-random-secret
-GOOGLE_APPS_SCRIPT_WEBHOOK_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
-```
-Replace `YOUR_GOOGLE_API_KEY` with your actual Google Generative AI API key.
-
-### Email verification and Google Sheets signups
-
-The account flow sends a six-digit code through Google Apps Script and Gmail when `GOOGLE_APPS_SCRIPT_WEBHOOK_URL` is configured. Apps Script must execute as the Sheet owner, and the owner must authorize Gmail access. If that variable is absent, the app falls back to Resend. In development, if neither provider is configured, the code is shown in the account dialog.
-
-To collect verified accounts in a Sheet without running a database:
-
-1. Create a Google Sheet with a tab named `Signups` and columns `Created At`, `Email`, and `Atmospheres`.
-2. Open Extensions > Apps Script, paste the contents of `google-apps-script/Code.gs.example`, replace `SHEET_ID`, and set the Apps Script property `PLENARY_WEBHOOK_SECRET` to the same value as your server environment variable. Keep your configured local `google-apps-script/Code.gs` private; it is ignored by Git.
-3. Deploy the script as a Web app, execute as yourself, and allow anyone with the link to access it. Put its `/exec` URL in `GOOGLE_SHEETS_WEBHOOK_URL`.
-4. Restart or redeploy the server. The server, not the browser, calls the webhook after the email code is verified.
-
-Use the same Apps Script `/exec` URL for both webhook variables. The script distinguishes email delivery from signup storage using the `action` field.
-
-### Opal boundary
-
-Google Opal currently provides hosted no-code AI mini-apps, not a documented external authentication, webhook, or transactional-email API. Keep sign-in, code verification, and Sheet writes in this app plus Apps Script. You can link an Opal from Plenary after sign-in, but do not put email credentials or Sheet secrets in the browser.
-
-Put the four picker images in `public/assets/journey/`; see that folder's README for the exact filenames.
-
-### Running the Development Server
-
-To run both the frontend and backend in development mode:
-
-```bash
-bun run dev # or npm run dev or yarn dev
+                 ┌─────────────────────────────┐
+                 │       Client Browser        │
+                 └──────────────┬──────────────┘
+                                │
+               ┌────────────────┴────────────────┐
+               │                                 │
+     (Direct Supabase Auth)           (API Calls: Reflection, OTP, Admin)
+               │                                 │
+               ▼                                 ▼
+   ┌───────────────────────┐         ┌───────────────────────┐
+   │    Supabase Cloud     │         │   FastAPI on Render   │
+   │  (Postgres, Auth, RLS)│         │ (Python 3.11+, async) │
+   └───────────────────────┘         └───────────┬───────────┘
+                                                 │
+                                ┌────────────────┼────────────────┐
+                                ▼                ▼                ▼
+                           OpenAI API      Anthropic API      Google Gemini
 ```
 
-This command uses `tsx` to run the `server.ts` file, which should also serve the Vite development server.
-
-### Building for Production
-
-To build the project for production:
-
-```bash
-bun run build # or npm run build or yarn build
-```
-
-This command will:
-1.  Build the frontend assets using Vite.
-2.  Bundle the backend `server.ts` into `dist/server.cjs` using esbuild.
-
-After building, you can start the production server:
-
-```bash
-bun run start # or npm run start or yarn start
-```
+---
 
 ## Project Structure
 
--   `public/`: Static assets for the frontend.
--   `src/`: Frontend source code (React components, styles, main entry points).
-    -   `src/components/`: Reusable React components.
-    -   `src/data/`: Initial data or mock data.
-    -   `src/types.ts`: TypeScript type definitions.
--   `server.ts`: Backend Express server entry point.
--   `index.html`: Main HTML file for the frontend.
--   `metadata.json`: Project metadata.
--   `tsconfig.json`: TypeScript configuration.
--   `vite.config.ts`: Vite frontend build configuration.
--   `package.json`: Project dependencies and scripts.
+```
+Plenary/
+├── backend/                  # FastAPI Application (for Render)
+│   ├── main.py               # API endpoints, CORS, LLM handlers, Supabase admin
+│   ├── requirements.txt      # Python dependencies (fastapi, uvicorn, httpx, supabase)
+│   ├── render.yaml           # Render Blueprint specification
+│   └── .env.example          # Backend environment variables template
+├── frontend/                 # React + Vite Application (for Vercel)
+│   ├── src/                  # React source components, pages, hooks, styles
+│   │   ├── lib/api.ts        # API client helper resolving VITE_API_URL or dev proxy
+│   │   └── ...
+│   ├── package.json          # Client dependencies and build scripts
+│   ├── vite.config.ts        # Vite config with /api proxy to localhost:8000
+│   ├── vercel.json           # Vercel SPA routing rewrite rules
+│   └── .env.example          # Frontend environment variables template
+├── render.yaml               # Root Render blueprint file for one-click setup
+└── README.md
+```
 
-## Support Parssa
+---
 
-If you find this project helpful and would like to support my work, you can send crypto (Solana) to the following wallet address:
+## Local Development
 
-**Solana Wallet Address:** `ExHycmN3JJH2S3MuLjVLsGigz6PaaEkwsnb3KSxi9dQJ`
+You can run commands directly from the root using npm convenience scripts, or navigate into each directory individually.
 
-Visit my website: [parssa.pro](https://parssa.pro)
+### Quick Start (from Repository Root)
 
-## Contributing
+```bash
+# Run frontend dev server (runs on http://localhost:5173 with proxy to backend):
+npm run dev:frontend
 
-Contributions are welcome! Please follow these steps:
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/your-feature-name`).
-3.  Make your changes.
-4.  Commit your changes (`git commit -m 'feat: Add new feature'`).
-5.  Push to the branch (`git push origin feature/your-feature-name`).
-6.  Open a Pull Request.
+# Build frontend for production:
+npm run build:frontend
 
-## License
+# Run frontend type-check:
+npm run lint:frontend
+
+# Run backend dev server (port 8000 with hot reload):
+npm run dev:backend
+```
+
+---
+
+### 1. Backend Setup (FastAPI)
+
+1. Open a terminal and navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Create and activate a Python virtual environment:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Copy the environment variables template and configure your secrets:
+   ```bash
+   cp .env.example .env
+   ```
+5. Start the FastAPI development server:
+   ```bash
+   uvicorn main:app --reload --port 8000
+   ```
+   The API will be available at `http://127.0.0.1:8000`. Interactive OpenAPI documentation is accessible at `http://127.0.0.1:8000/docs`.
+
+---
+
+### 2. Frontend Setup (React + Vite)
+
+1. Open a second terminal and navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Copy the environment variables template and fill in your Supabase keys:
+   ```bash
+   cp .env.example .env
+   ```
+   *(Note: Leave `VITE_API_URL` empty in local development to let Vite automatically proxy `/api` requests to `http://127.0.0.1:8000`)*.
+
+4. Start the frontend development server:
+   ```bash
+   npm run dev
+   ```
+   Open `http://localhost:5173` in your browser.
+
+---
+
+## Deployment Guide
+
+### Deploying the Backend to Render
+
+1. Log in to [Render](https://render.com) and click **New +** > **Web Service**.
+2. Connect your GitHub repository (`PyParssa/Plenary`).
+3. Configure the service:
+   - **Name**: `plenary-backend`
+   - **Root Directory**: `backend`
+   - **Environment / Runtime**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - **Plan**: `Free`
+4. In **Environment Variables**, add:
+   - `SUPABASE_URL`: Your Supabase Project URL (`https://<project-ref>.supabase.co`)
+   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase Service Role Key (from Supabase Settings > API)
+   - `ALLOWED_ORIGINS`: Comma-separated allowed origins (e.g. `http://localhost:5173,https://your-frontend.vercel.app`)
+   - `RESEND_API_KEY`: *(Optional)* Your Resend API key for verification emails
+   - `RESEND_FROM_EMAIL`: *(Optional)* Verified sender email (e.g. `Plenary <noreply@yourdomain.com>`)
+   - `GOOGLE_SHEETS_WEBHOOK_URL`: *(Optional)* Apps Script webhook URL for signups
+   - `GOOGLE_SHEETS_WEBHOOK_SECRET`: *(Optional)* Apps Script shared secret
+5. Click **Create Web Service**. Once deployed, copy your Render URL (e.g., `https://plenary-backend.onrender.com`).
+
+*(Alternative: You can also use Render's **Blueprints** feature; Render will automatically detect `render.yaml` at the root).*
+
+---
+
+### Deploying the Frontend to Vercel
+
+1. Log in to [Vercel](https://vercel.com) and click **Add New...** > **Project**.
+2. Import your GitHub repository (`PyParssa/Plenary`).
+3. In project settings:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: Click edit and select `frontend`
+4. Under **Environment Variables**, add:
+   - `VITE_SUPABASE_URL`: Your Supabase Project URL
+   - `VITE_SUPABASE_ANON_KEY`: Your Supabase Public Anon Key
+   - `VITE_API_URL`: The URL of your deployed Render backend (e.g., `https://plenary-backend.onrender.com`)
+5. Click **Deploy**. Vercel will build and deploy the React application with automatic SPA routing.
+
+---
+
+## Environment Variables
+
+### Backend (`backend/.env`)
+| Variable | Description |
+|---|---|
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key for admin operations |
+| `ALLOWED_ORIGINS` | Comma-delimited list of origins permitted by CORS |
+| `RESEND_API_KEY` | Resend API key for transactional emails |
+| `RESEND_FROM_EMAIL` | Verified sending email address |
+| `GOOGLE_SHEETS_WEBHOOK_URL` | Google Apps Script webhook for storing signups |
+| `GOOGLE_SHEETS_WEBHOOK_SECRET`| Shared authentication secret for Apps Script |
+
+### Frontend (`frontend/.env`)
+| Variable | Description |
+|---|---|
+| `VITE_SUPABASE_URL` | Public Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Public Supabase anonymous key |
+| `VITE_API_URL` | Render backend URL (e.g. `https://plenary-backend.onrender.com`). In local development, leave unset to use Vite proxy. |
+
+---
+
+## License & Support
 
 This project is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License](LICENSE.md).
 
-You may use, copy, modify, and share this project for non-commercial purposes with appropriate credit to Parssa. Commercial use requires separate written permission from the author.
+**Support the Creator:**
+- **Solana Wallet:** `ExHycmN3JJH2S3MuLjVLsGigz6PaaEkwsnb3KSxi9dQJ`
+- **Website:** [parssa.pro](https://parssa.pro)

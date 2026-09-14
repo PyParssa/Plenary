@@ -8,3 +8,18 @@ coverage/
 !.env.example
 .vercel
 google-apps-script/Code.gs
+
+# Frontend & Backend build/runtime
+frontend/dist/
+frontend/node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/.venv/
+.venv/
+env/
+venv/
+ENV/
+

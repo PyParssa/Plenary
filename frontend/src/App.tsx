@@ -21,6 +21,7 @@ import { Sparkles, CheckCircle2, Bookmark } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { supabase } from './lib/supabase';
 import { applyVouches, loadUserData, removeVouch, saveCard, savePreferences, saveProfile, saveReflection, saveVouch } from './lib/database';
+import { getApiUrl } from './lib/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('deck');
@@ -71,7 +72,7 @@ export default function App() {
   const handleDeleteAccount = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error('Your session has expired. Please sign in again.');
-    const response = await fetch('/api/account/delete', {
+    const response = await fetch(getApiUrl('/api/account/delete'), {
       method: 'POST',
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
@@ -223,7 +224,7 @@ export default function App() {
           : undefined;
       if (sessionEmail) {
         const bootstrapResponse = session.access_token
-          ? await fetch('/api/account/bootstrap', {
+          ? await fetch(getApiUrl('/api/account/bootstrap'), {
               method: 'POST',
               headers: { Authorization: `Bearer ${session.access_token}` },
             })

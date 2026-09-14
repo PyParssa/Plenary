@@ -1,0 +1,5 @@
+# Files and directories Vercel should completely ignore
+backend/
+supabase/
+google-apps-script/
+render.yaml
