@@ -167,19 +167,20 @@ export const AccountView: React.FC<AccountViewProps> = ({ profile, onUpdateProfi
       <div className="py-6 border-b border-[#e5e5e5]">
         <div className="flex items-center gap-2 mb-2">
           <Compass className="h-4 w-4 text-[#fca311]" />
-          <h2 className="text-xl font-semibold text-[#14213d]">Product Orientation</h2>
+          <h2 className="text-xl font-semibold text-[#14213d]">Interactive Guided Tour</h2>
         </div>
         <p className="text-xs text-[#14213d]/60 max-w-xl mb-4">
-          Want a quick refresher on how Plenary's inquiry deck, 3-second hold vouching, vault, and Socratic reflection work?
+          Want a guided walkthrough? Take the tour to see how to swipe through the inquiry deck, use the 3-second hold to vouch questions into your Vault, and explore Socratic AI reflections.
         </p>
         <button
           id="replay-tour-btn"
+          data-tour="tour-replay-btn"
           type="button"
           onClick={onReplayTour}
-          className="flex items-center gap-2 rounded-xl bg-white border border-[#14213d] hover:bg-[#14213d] hover:text-white px-4 py-2.5 text-xs font-semibold text-[#14213d] transition-all cursor-pointer shadow-xs group"
+          className="flex items-center gap-2.5 rounded-xl bg-[#14213d] hover:bg-black text-white px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer shadow-sm group"
         >
           <RotateCcw className="h-3.5 w-3.5 text-[#fca311] group-hover:rotate-[-45deg] transition-transform" />
-          <span>Replay Guided Tour</span>
+          <span>Take a Tour (Replay)</span>
         </button>
       </div>
 

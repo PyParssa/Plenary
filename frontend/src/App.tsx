@@ -17,12 +17,13 @@ import { SupportModal } from './components/SupportModal';
 import { ShareModal } from './components/ShareModal';
 import { AccountModal } from './components/AccountModal';
 import { JourneyPicker } from './components/JourneyPicker';
+import { WelcomeModal } from './components/WelcomeModal';
 import { Sparkles, CheckCircle2, Bookmark } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { supabase } from './lib/supabase';
 import { applyVouches, fetchCards, loadUserData, removeVouch, saveCard, savePreferences, saveProfile, saveReflection, saveVouch } from './lib/database';
 import { getApiUrl } from './lib/api';
-import { isTourCompleted, startTour, replayTour } from './tour/TourManager';
+import { isTourCompleted, setTourCompleted, startTour, replayTour } from './tour/TourManager';
 
 const getInitialUserRole = (email?: string | null, existingRole?: UserRole): UserRole => {
   if (existingRole) return existingRole;
@@ -67,6 +68,9 @@ export default function App() {
   const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [isJourneyOpen, setIsJourneyOpen] = useState(false);
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState(() => {
+    return localStorage.getItem('plenary_welcomed') !== 'true' && !isTourCompleted();
+  });
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -358,6 +362,22 @@ export default function App() {
     }
   };
 
+  const handleWelcomeTakeTour = () => {
+    localStorage.setItem('plenary_welcomed', 'true');
+    setIsWelcomeOpen(false);
+    setActiveTab('deck');
+    setTimeout(() => {
+      startTour();
+    }, 300);
+  };
+
+  const handleWelcomeProceed = () => {
+    localStorage.setItem('plenary_welcomed', 'true');
+    setTourCompleted(true);
+    setIsWelcomeOpen(false);
+    showToast('Welcome to Plenary. Swipe through the deck to begin.');
+  };
+
   const handleReplayTour = () => {
     setActiveTab('deck');
     setTimeout(() => {
@@ -467,6 +487,7 @@ export default function App() {
         onOpenSupport={() => setIsSupportOpen(true)}
         onOpenAccount={handleOpenAccount}
         onLogout={handleLogout}
+        onReplayTour={handleReplayTour}
         vouchedCount={cards.filter((c) => c.vouched).length}
         reflectionsCount={Object.keys(reflectionSessions).length}
         isNightMode={isNightMode}
@@ -597,6 +618,12 @@ export default function App() {
           setPendingAction(null);
         }}
         onCreateAccount={handleCreateAccount}
+      />
+
+      <WelcomeModal
+        isOpen={isWelcomeOpen}
+        onTakeTour={handleWelcomeTakeTour}
+        onProceed={handleWelcomeProceed}
       />
 
       {isJourneyOpen && <JourneyPicker onComplete={handleJourneyComplete} />}

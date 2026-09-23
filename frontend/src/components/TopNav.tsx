@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ActiveTab, LifeStage } from '../types';
-import { Sparkles, Heart, Filter, ChevronDown, Check, User, ShieldCheck, Moon, Sun, LogOut } from 'lucide-react';
+import { Sparkles, Heart, Filter, ChevronDown, Check, User, ShieldCheck, Moon, Sun, LogOut, Compass } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface TopNavProps {
@@ -11,6 +11,7 @@ interface TopNavProps {
   onOpenSupport: () => void;
   onOpenAccount: () => void;
   onLogout: () => void;
+  onReplayTour?: () => void;
   vouchedCount: number;
   isNightMode: boolean;
   onToggleNightMode: () => void;
@@ -38,6 +39,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   onOpenSupport,
   onOpenAccount,
   onLogout,
+  onReplayTour,
   vouchedCount,
   isNightMode,
   onToggleNightMode,
@@ -197,7 +199,7 @@ export const TopNav: React.FC<TopNavProps> = ({
                     </div>
                   </div>
 
-                  <div className="pt-3 flex gap-2">
+                  <div className="pt-3 flex flex-col gap-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -208,6 +210,19 @@ export const TopNav: React.FC<TopNavProps> = ({
                     >
                       Open My Vault
                     </button>
+                    {onReplayTour && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileOpen(false);
+                          onReplayTour();
+                        }}
+                        className="w-full py-1.5 text-center text-xs font-medium rounded-lg border border-[#14213d]/20 text-[#14213d] hover:bg-[#14213d]/5 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Compass className="w-3.5 h-3.5 text-[#fca311]" />
+                        Take a Tour
+                      </button>
+                    )}
                   </div>
                   <div className="pt-2 flex gap-2">
                     <button
