@@ -43,14 +43,22 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
 
+  // Check if an author profile name matches a card author string
+  const isAuthorMatch = (authorName: string, cardAuthor: string): boolean => {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const aNorm = norm(authorName);
+    const cNorm = norm(cardAuthor);
+    if (!aNorm || !cNorm) return false;
+    if (aNorm.includes(cNorm) || cNorm.includes(aNorm)) return true;
+    const aWords = aNorm.split(/\s+/).filter((w) => w.length > 2);
+    const cWords = cNorm.split(/\s+/).filter((w) => w.length > 2);
+    return aWords.some((w) => cWords.includes(w));
+  };
+
   // Compute actual vouches across cards for an author
   const getAuthorVouches = (name: string) => {
-    const cleanName = name.toLowerCase().replace(/[^a-z]/g, '');
     return cards
-      .filter((c) => {
-        const cardAuthor = c.author.toLowerCase().replace(/[^a-z]/g, '');
-        return cardAuthor.includes(cleanName) || cleanName.includes(cardAuthor);
-      })
+      .filter((c) => isAuthorMatch(name, c.author))
       .reduce((sum, c) => sum + (c.vouchCount || 0), 0);
   };
 
@@ -173,9 +181,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
       {/* Author Profiles Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-8">
         {authors.map((author) => {
-          const authorQuestions = cards.filter((c) =>
-            c.author.toLowerCase().includes(author.name.toLowerCase().split(' ')[0])
-          );
+          const authorQuestions = cards.filter((c) => isAuthorMatch(author.name, c.author));
 
           return (
             <div
