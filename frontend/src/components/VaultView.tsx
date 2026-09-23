@@ -169,6 +169,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
                       alt={card.author}
                       className="w-6 h-6 rounded-full object-cover border border-[#e5e5e5]"
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/assets/default-avatar.svg';
+                      }}
                     />
                     <div className="text-right">
                       <div className="text-[11px] font-semibold text-[#14213d] flex items-center gap-1 justify-end">

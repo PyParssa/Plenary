@@ -191,6 +191,9 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                     alt={author.name}
                     className="w-12 h-12 rounded-full object-cover border border-[#e5e5e5]"
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/assets/default-avatar.svg';
+                    }}
                   />
                   <div>
                     <div className="flex items-center gap-1.5">

@@ -180,7 +180,19 @@ export default function App() {
         return c;
       })
     );
-    if (userId) void saveVouch(userId, cardId).catch((error) => console.error('Could not save vouch:', error));
+
+    const persistVouch = async () => {
+      let targetUserId = userId;
+      if (!targetUserId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        targetUserId = session?.user?.id ?? null;
+      }
+      if (targetUserId) {
+        await saveVouch(targetUserId, cardId);
+      }
+    };
+
+    void persistVouch().catch((error) => console.error('Could not save vouch:', error));
     showToast('Inquiry vouched and anchored in your Vault');
   };
 
@@ -367,7 +379,19 @@ export default function App() {
         return c;
       })
     );
-    if (userId) void removeVouch(userId, cardId).catch((error) => console.error('Could not remove vouch:', error));
+
+    const persistUnvouch = async () => {
+      let targetUserId = userId;
+      if (!targetUserId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        targetUserId = session?.user?.id ?? null;
+      }
+      if (targetUserId) {
+        await removeVouch(targetUserId, cardId);
+      }
+    };
+
+    void persistUnvouch().catch((error) => console.error('Could not remove vouch:', error));
     showToast('Inquiry removed from Vault');
   };
 

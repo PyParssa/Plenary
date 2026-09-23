@@ -221,6 +221,9 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
               alt={card.author}
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = '/assets/default-avatar.svg';
+              }}
             />
           </div>
           <span className="text-xs font-medium text-[#14213d]">{card.author}</span>

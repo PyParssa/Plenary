@@ -12,9 +12,12 @@ alter table public.profiles add column if not exists role text not null default 
 alter table public.profiles drop constraint if exists profiles_role_check;
 alter table public.profiles add constraint profiles_role_check check (role in ('user', 'creator', 'manager'));
 
+-- Initial seed: promote designated administrator/manager email to 'manager'
+-- Configurable: replace with your primary administrator email address
 update public.profiles
 set role = 'manager', updated_at = now()
 where lower(email) = 'parssamohammadi@gmail.com';
+
 
 create table if not exists public.cards (
   id text primary key,
@@ -123,6 +126,7 @@ begin
   values (
     new.id,
     new.email,
+    -- Auto-elevate the bootstrap manager; adjust or expand email matching as needed
     case when lower(new.email) = 'parssamohammadi@gmail.com' then 'manager' else 'user' end
   )
   on conflict (id) do update set email = excluded.email;
