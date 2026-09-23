@@ -32,7 +32,7 @@ export interface AuthorProfile {
   role: string;
   bio: string;
   booksPublished: string[];
-  totalVouches: number;
+  totalVouches?: number;
   verified: boolean;
   curatedCount: number;
 }

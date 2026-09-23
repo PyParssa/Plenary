@@ -20,12 +20,28 @@ import { JourneyPicker } from './components/JourneyPicker';
 import { Sparkles, CheckCircle2, Bookmark } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { supabase } from './lib/supabase';
-import { applyVouches, loadUserData, removeVouch, saveCard, savePreferences, saveProfile, saveReflection, saveVouch } from './lib/database';
+import { applyVouches, fetchCards, loadUserData, removeVouch, saveCard, savePreferences, saveProfile, saveReflection, saveVouch } from './lib/database';
 import { getApiUrl } from './lib/api';
+
+const getInitialUserRole = (email?: string | null, existingRole?: UserRole): UserRole => {
+  if (existingRole) return existingRole;
+  if (!email) return 'user';
+  const managerEmails = (import.meta.env.VITE_MANAGER_EMAILS || '')
+    .split(',')
+    .map((e: string) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return managerEmails.includes(email.trim().toLowerCase()) ? 'manager' : 'user';
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('deck');
   const [cards, setCards] = useState<QuestionCard[]>(() => {
+    const version = localStorage.getItem('plenary_data_version');
+    if (version !== '2') {
+      localStorage.setItem('plenary_data_version', '2');
+      localStorage.removeItem('plenary_cards');
+      return INITIAL_QUESTIONS;
+    }
     const saved = localStorage.getItem('plenary_cards');
     if (saved) {
       try {
@@ -177,7 +193,7 @@ export default function App() {
       displayName,
       createdAt: Date.now(),
       selectedAtmospheres: guestProfile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
-      role: guestProfile?.role ?? (normalizedEmail === 'parssamohammadi@gmail.com' ? 'manager' : 'user'),
+      role: guestProfile?.role ?? getInitialUserRole(normalizedEmail),
     });
     if (userId) void saveProfile(userId, normalizedEmail, displayName).catch((error) => console.error('Could not save profile:', error));
     setIsAccountOpen(false);
@@ -258,7 +274,7 @@ export default function App() {
           email: session.user.email,
           createdAt: Date.now(),
           selectedAtmospheres: JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
-          role: sessionEmail.toLowerCase() === 'parssamohammadi@gmail.com' ? 'manager' : 'user',
+          role: getInitialUserRole(sessionEmail),
         });
         setIsJourneyOpen(!localStorage.getItem('plenary_journey'));
       }
@@ -275,6 +291,32 @@ export default function App() {
     return () => {
       isMounted = false;
       authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Fetch public cards with real community vouch counts from Supabase
+  useEffect(() => {
+    let active = true;
+    fetchCards()
+      .then((remoteCards) => {
+        if (!active || remoteCards.length === 0) return;
+        setCards((current) => {
+          const currentVouched = new Map(current.map((c) => [c.id, { vouched: c.vouched, vouchedAt: c.vouchedAt }]));
+          return remoteCards.map((rc) => {
+            const local = currentVouched.get(rc.id);
+            return {
+              ...rc,
+              vouched: local?.vouched ?? false,
+              vouchedAt: local?.vouchedAt,
+            };
+          });
+        });
+      })
+      .catch((error) => {
+        console.warn('Could not fetch public cards from Supabase:', error);
+      });
+    return () => {
+      active = false;
     };
   }, []);
 
@@ -378,6 +420,7 @@ export default function App() {
         onOpenAccount={handleOpenAccount}
         onLogout={handleLogout}
         vouchedCount={cards.filter((c) => c.vouched).length}
+        reflectionsCount={Object.keys(reflectionSessions).length}
         isNightMode={isNightMode}
         onToggleNightMode={() => setIsNightMode(!isNightMode)}
         accountEmail={guestProfile?.email}

@@ -16,6 +16,7 @@ interface TopNavProps {
   onToggleNightMode: () => void;
   accountEmail?: string;
   accountName?: string;
+  reflectionsCount?: number;
 }
 
 const LIFE_STAGES: LifeStage[] = [
@@ -42,6 +43,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   onToggleNightMode,
   accountEmail,
   accountName,
+  reflectionsCount = 0,
 }) => {
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -188,13 +190,7 @@ export const TopNav: React.FC<TopNavProps> = ({
                     <div className="flex items-center justify-between text-[#14213d]">
                       <span className="text-[#14213d]/60">Socratic Reflections</span>
                       <span className="font-mono font-semibold px-2 py-0.5 rounded-md bg-[#fca311]/20 text-[#14213d]">
-                        5-Turn Mode
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-[#14213d]">
-                      <span className="text-[#14213d]/60">Inquiry Habit</span>
-                      <span className="text-[#fca311] font-medium flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" /> Daily Ember
+                        {reflectionsCount} active
                       </span>
                     </div>
                   </div>

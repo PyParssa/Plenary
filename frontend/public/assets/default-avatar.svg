@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <linearGradient id="avatarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fca311" />
+      <stop offset="100%" stop-color="#e59807" />
+    </linearGradient>
+  </defs>
+  <!-- Background Circle -->
+  <circle cx="64" cy="64" r="64" fill="url(#avatarGrad)" />
+  <!-- Subtle inner border -->
+  <circle cx="64" cy="64" r="62" fill="none" stroke="#ffffff" stroke-opacity="0.1" stroke-width="2" />
+  <!-- Head -->
+  <circle cx="64" cy="48" r="22" fill="#e5e5e5" />
+  <!-- Body / Shoulders -->
+  <path d="M 28 108 C 28 86, 44 76, 64 76 C 84 76, 100 86, 100 108 Z" fill="#e5e5e5" />
+  <!-- Plenary Emblem Star/Dot in top corner -->
+  <circle cx="94" cy="34" r="6" fill="url(#accentGrad)" />
+</svg>
+

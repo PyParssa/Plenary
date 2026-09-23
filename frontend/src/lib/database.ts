@@ -1,6 +1,26 @@
 import { supabase } from './supabase';
 import { GuestProfile, QuestionCard, ReflectionSession, UserRole } from '../types';
 
+export async function fetchCards(): Promise<QuestionCard[]> {
+  const { data, error } = await supabase
+    .from('cards')
+    .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count');
+  if (error) throw error;
+  return (data ?? []).map((card) => ({
+    id: card.id,
+    category: card.category,
+    author: card.author,
+    authorAvatar: card.author_avatar,
+    authorBio: card.author_bio ?? undefined,
+    book: card.book,
+    question: card.question,
+    backstory: card.backstory,
+    relatedInquiries: (card.related_inquiries ?? []) as string[],
+    vouched: false,
+    vouchCount: Number(card.vouch_count ?? 0),
+  }));
+}
+
 export async function loadUserData(userId: string): Promise<{
   profile: GuestProfile | null;
   vouchedCardIds: string[];
@@ -11,7 +31,7 @@ export async function loadUserData(userId: string): Promise<{
     supabase.from('profiles').select('email, display_name, created_at, selected_atmospheres, role').eq('id', userId).maybeSingle(),
     supabase.from('card_vouches').select('card_id').eq('user_id', userId),
     supabase.from('reflection_sessions').select('card_id, session').eq('user_id', userId),
-    supabase.from('cards').select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries'),
+    supabase.from('cards').select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count'),
   ]);
 
   if (profileResult.error) throw profileResult.error;
@@ -46,7 +66,7 @@ export async function loadUserData(userId: string): Promise<{
       backstory: card.backstory,
       relatedInquiries: (card.related_inquiries ?? []) as string[],
       vouched: false,
-      vouchCount: 0,
+      vouchCount: Number(card.vouch_count ?? 0),
     })),
   };
 }

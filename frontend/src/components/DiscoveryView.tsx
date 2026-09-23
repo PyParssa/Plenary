@@ -43,15 +43,20 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
 
+  // Compute actual vouches across cards for an author
+  const getAuthorVouches = (name: string) => {
+    return cards
+      .filter((c) => c.author.toLowerCase() === name.toLowerCase())
+      .reduce((sum, c) => sum + (c.vouchCount || 0), 0);
+  };
+
   // Form states for "Craft an Illuminating Card"
   const [question, setQuestion] = useState('');
   const [backstory, setBackstory] = useState('');
   const [category, setCategory] = useState<LifeStage>('Existential Inquiry');
   const [authorName, setAuthorName] = useState('');
   const [bookTitle, setBookTitle] = useState('');
-  const [authorAvatar, setAuthorAvatar] = useState(
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
-  );
+  const [authorAvatar, setAuthorAvatar] = useState('/assets/default-avatar.svg');
   const [relatedInquiry1, setRelatedInquiry1] = useState('');
   const [relatedInquiry2, setRelatedInquiry2] = useState('');
   const [formError, setFormError] = useState('');
@@ -89,7 +94,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
     onAddCustomCard({
       category,
       author: authorName.trim(),
-      authorAvatar: authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      authorAvatar: authorAvatar || '/assets/default-avatar.svg',
       book: bookTitle.trim(),
       question: question.trim(),
       backstory: backstory.trim(),
@@ -225,7 +230,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
               <div className="pt-4 border-t border-[#e5e5e5] flex items-center justify-between">
                 <div className="flex items-center gap-1 text-[11px] text-[#14213d]/60 font-mono">
                   <Bookmark className="w-3.5 h-3.5 text-[#fca311]" />
-                  <span>{author.totalVouches.toLocaleString()} vouches</span>
+                  <span>{getAuthorVouches(author.name).toLocaleString()} vouches</span>
                 </div>
 
                 <button
@@ -437,17 +442,17 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                       <span className="inline-flex px-3 py-1 bg-[#e5e5e5]/40 rounded-full text-[10px] font-bold uppercase tracking-widest text-[#14213d]">
                         {category}
                       </span>
-                      <span className="text-[#14213d]/60 font-semibold italic text-xs">
+                      <span className={`font-semibold italic text-xs ${authorName || bookTitle ? 'text-[#14213d]/60' : 'text-[#14213d]/30 italic'}`}>
                         {authorName || 'Author'} • {bookTitle || 'Source Book'}
                       </span>
                     </div>
                     <p
-                      className="font-serif text-xl text-[#14213d] font-light italic leading-snug"
+                      className={`font-serif text-xl font-light italic leading-snug ${question ? 'text-[#14213d]' : 'text-[#14213d]/30 italic'}`}
                       style={{ fontFamily: '"Georgia", serif' }}
                     >
                       “{question || 'Your headline question will appear here...'}”
                     </p>
-                    <p className="text-[11px] text-[#14213d]/70 mt-2 line-clamp-2">
+                    <p className={`text-[11px] mt-2 line-clamp-2 ${backstory ? 'text-[#14213d]/70' : 'text-[#14213d]/35 italic'}`}>
                       {backstory || 'Context backstory will illuminate this card...'}
                     </p>
                   </div>
