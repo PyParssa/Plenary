@@ -37,15 +37,22 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('deck');
   const [cards, setCards] = useState<QuestionCard[]>(() => {
     const version = localStorage.getItem('plenary_data_version');
-    if (version !== '2') {
-      localStorage.setItem('plenary_data_version', '2');
+    if (version !== '4') {
+      localStorage.setItem('plenary_data_version', '4');
       localStorage.removeItem('plenary_cards');
       return INITIAL_QUESTIONS;
     }
     const saved = localStorage.getItem('plenary_cards');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((card: QuestionCard) => ({
+            ...card,
+            vouchCount: card.vouchCount > 1000 ? 0 : (card.vouchCount ?? 0),
+            vouched: card.vouchCount > 1000 ? false : card.vouched,
+          }));
+        }
       } catch {
         return INITIAL_QUESTIONS;
       }

@@ -209,7 +209,11 @@ export const VouchButton: React.FC<VouchButtonProps> = ({
           )}
         </span>
         <span className="block text-[10px] text-[#14213d]/40 mt-0.5">
-          {vouchCount.toLocaleString()} voyagers vouched
+          {vouchCount === 0
+            ? 'Be the first to vouch'
+            : vouchCount === 1
+            ? '1 voyager vouched'
+            : `${vouchCount.toLocaleString()} voyagers vouched`}
         </span>
       </div>
     </div>

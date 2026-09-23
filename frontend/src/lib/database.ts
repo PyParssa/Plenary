@@ -2,11 +2,22 @@ import { supabase } from './supabase';
 import { GuestProfile, QuestionCard, ReflectionSession, UserRole } from '../types';
 
 export async function fetchCards(): Promise<QuestionCard[]> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('cards')
     .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count');
+
+  if (error) {
+    const fallback = await supabase
+      .from('cards')
+      .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries');
+    if (!fallback.error && fallback.data) {
+      data = fallback.data;
+      error = null;
+    }
+  }
+
   if (error) throw error;
-  return (data ?? []).map((card) => ({
+  return (data ?? []).map((card: any) => ({
     id: card.id,
     category: card.category,
     author: card.author,
@@ -37,7 +48,18 @@ export async function loadUserData(userId: string): Promise<{
   if (profileResult.error) throw profileResult.error;
   if (vouchesResult.error) throw vouchesResult.error;
   if (reflectionsResult.error) throw reflectionsResult.error;
-  if (cardsResult.error) throw cardsResult.error;
+
+  let cardRows = cardsResult.data;
+  if (cardsResult.error) {
+    const fallbackCards = await supabase
+      .from('cards')
+      .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries');
+    if (!fallbackCards.error && fallbackCards.data) {
+      cardRows = fallbackCards.data;
+    } else {
+      throw cardsResult.error;
+    }
+  }
 
   const profile = profileResult.data
     ? {
@@ -55,7 +77,7 @@ export async function loadUserData(userId: string): Promise<{
     reflections: Object.fromEntries(
       (reflectionsResult.data ?? []).map((row) => [row.card_id, row.session as ReflectionSession]),
     ),
-    cards: (cardsResult.data ?? []).map((card) => ({
+    cards: (cardRows ?? []).map((card: any) => ({
       id: card.id,
       category: card.category,
       author: card.author,

@@ -45,8 +45,12 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
 
   // Compute actual vouches across cards for an author
   const getAuthorVouches = (name: string) => {
+    const cleanName = name.toLowerCase().replace(/[^a-z]/g, '');
     return cards
-      .filter((c) => c.author.toLowerCase() === name.toLowerCase())
+      .filter((c) => {
+        const cardAuthor = c.author.toLowerCase().replace(/[^a-z]/g, '');
+        return cardAuthor.includes(cleanName) || cleanName.includes(cardAuthor);
+      })
       .reduce((sum, c) => sum + (c.vouchCount || 0), 0);
   };
 
