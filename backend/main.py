@@ -65,6 +65,13 @@ app.add_middleware(
 )
 
 
+from admin import router as admin_router
+from auth import extract_bearer_token, get_supabase_admin
+
+# Mount routers
+app.include_router(admin_router)
+
+
 # ==========================================
 # Helpers & Dependency Utilities
 # ==========================================
@@ -72,28 +79,6 @@ app.add_middleware(
 def is_production() -> bool:
     env = (os.getenv("NODE_ENV") or os.getenv("ENVIRONMENT") or "").lower()
     return env == "production" or os.getenv("RENDER") is not None
-
-
-def get_supabase_admin() -> Client:
-    supabase_url = os.getenv("SUPABASE_URL") or os.getenv("VITE_SUPABASE_URL")
-    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    if not supabase_url or not service_role_key:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Supabase is not configured on the server.",
-        )
-    return create_client(supabase_url, service_role_key)
-
-
-def extract_bearer_token(authorization: Optional[str]) -> str:
-    if not authorization:
-        return ""
-    parts = authorization.split()
-    if len(parts) == 2 and parts[0].lower() == "bearer":
-        return parts[1].strip()
-    if authorization.startswith("Bearer "):
-        return authorization[7:].strip()
-    return ""
 
 
 # ==========================================

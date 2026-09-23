@@ -12,6 +12,7 @@ import { DeckView } from './components/DeckView';
 import { VaultView } from './components/VaultView';
 import { DiscoveryView } from './components/DiscoveryView';
 import { AccountView } from './components/AccountView';
+import { AdminView } from './components/AdminView';
 import { SocraticDrawer } from './components/SocraticDrawer';
 import { SupportModal } from './components/SupportModal';
 import { ShareModal } from './components/ShareModal';
@@ -37,6 +38,7 @@ const getInitialUserRole = (email?: string | null, existingRole?: UserRole): Use
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('deck');
+  const [sessionToken, setSessionToken] = useState<string>('');
   const [cards, setCards] = useState<QuestionCard[]>(() => {
     const version = localStorage.getItem('plenary_data_version');
     if (version !== '4') {
@@ -249,6 +251,7 @@ export default function App() {
 
       if (!session?.user?.id) {
         setUserId(null);
+        setSessionToken('');
         setGuestProfile(null);
         setIsAuthReady(true);
         return;
@@ -256,6 +259,7 @@ export default function App() {
 
       authenticatedUserId = session.user.id;
       setUserId(session.user.id);
+      setSessionToken(session.access_token ?? '');
       const sessionEmail = session.user.email ?? '';
       const sessionDisplayName = typeof session.user.user_metadata?.display_name === 'string'
         ? session.user.user_metadata.display_name
@@ -494,6 +498,7 @@ export default function App() {
         onToggleNightMode={() => setIsNightMode(!isNightMode)}
         accountEmail={guestProfile?.email}
         accountName={guestProfile?.displayName}
+        isManager={guestProfile?.role === 'manager'}
       />
 
       {/* Main Content Body */}
@@ -581,6 +586,37 @@ export default function App() {
                 onSaveLlmSettings={handleSaveLlmSettings}
                 onReplayTour={handleReplayTour}
               />
+            </motion.section>
+          )}
+
+          {activeTab === 'admin' && (
+            <motion.section
+              key="admin-view"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+              className="w-full"
+            >
+              {guestProfile?.role === 'manager' ? (
+                <AdminView
+                  token={sessionToken}
+                  currentUserId={userId ?? undefined}
+                  onShowToast={showToast}
+                />
+              ) : (
+                <div className="text-center py-20 text-[#14213d]/60">
+                  <p className="text-base font-bold">Access Restricted</p>
+                  <p className="text-xs mt-1">Manager credentials are required to view the Admin panel.</p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('deck')}
+                    className="mt-4 px-5 py-2 bg-[#14213d] text-white text-xs font-semibold rounded-full hover:bg-black transition-colors"
+                  >
+                    Return to Deck
+                  </button>
+                </div>
+              )}
             </motion.section>
           )}
         </AnimatePresence>

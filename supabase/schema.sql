@@ -30,11 +30,18 @@ create table if not exists public.cards (
   backstory text not null,
   related_inquiries jsonb not null default '[]'::jsonb,
   vouch_count integer not null default 0,
+  published boolean not null default true,
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
 alter table public.cards add column if not exists vouch_count integer not null default 0;
+alter table public.cards add column if not exists published boolean not null default true;
+
+create index if not exists idx_cards_created_at on public.cards (created_at desc);
+create index if not exists idx_cards_published on public.cards (published);
+create index if not exists idx_profiles_created_at on public.profiles (created_at desc);
+create index if not exists idx_profiles_role on public.profiles (role);
 
 create table if not exists public.card_vouches (
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -91,8 +98,9 @@ create policy "Users can update their profile"
 
 drop policy if exists "Authenticated users can read cards" on public.cards;
 drop policy if exists "Anyone can read cards" on public.cards;
-create policy "Anyone can read cards"
-  on public.cards for select using (true);
+drop policy if exists "Anyone can read published cards" on public.cards;
+create policy "Anyone can read published cards"
+  on public.cards for select using (published = true);
 drop policy if exists "Users can create cards" on public.cards;
 drop policy if exists "Creators and managers can create cards" on public.cards;
 create policy "Creators and managers can create cards"

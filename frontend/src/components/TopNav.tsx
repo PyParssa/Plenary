@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ActiveTab, LifeStage } from '../types';
-import { Sparkles, Heart, Filter, ChevronDown, Check, User, ShieldCheck, Moon, Sun, LogOut, Compass } from 'lucide-react';
+import { Sparkles, Heart, Filter, ChevronDown, Check, User, ShieldCheck, Shield, Moon, Sun, LogOut, Compass } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface TopNavProps {
@@ -18,6 +18,7 @@ interface TopNavProps {
   accountEmail?: string;
   accountName?: string;
   reflectionsCount?: number;
+  isManager?: boolean;
 }
 
 const LIFE_STAGES: LifeStage[] = [
@@ -46,6 +47,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   accountEmail,
   accountName,
   reflectionsCount = 0,
+  isManager = false,
 }) => {
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -121,6 +123,22 @@ export const TopNav: React.FC<TopNavProps> = ({
           >
             DISCOVERY
           </button>
+
+          {isManager && (
+            <button
+              id="nav-pill-admin"
+              type="button"
+              onClick={() => onTabChange('admin')}
+              className={`px-7 py-1.5 text-xs rounded-full transition-all duration-200 outline-none flex items-center gap-1.5 ${
+                activeTab === 'admin'
+                  ? 'bg-white font-bold shadow-xs border border-[#e5e5e5] text-[#14213d]'
+                  : 'font-medium opacity-50 hover:opacity-80 text-[#14213d]'
+              }`}
+            >
+              <Shield className="w-3.5 h-3.5 text-[#fca311]" />
+              <span>ADMIN</span>
+            </button>
+          )}
         </nav>
 
         {/* Right-Hand Actions */}
@@ -210,6 +228,19 @@ export const TopNav: React.FC<TopNavProps> = ({
                     >
                       Open My Vault
                     </button>
+                    {isManager && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onTabChange('admin');
+                          setProfileOpen(false);
+                        }}
+                        className="w-full py-1.5 text-center text-xs font-medium rounded-lg bg-[#14213d]/10 text-[#14213d] hover:bg-[#14213d]/20 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Shield className="w-3.5 h-3.5 text-[#fca311]" />
+                        Admin Panel
+                      </button>
+                    )}
                     {onReplayTour && (
                       <button
                         type="button"
@@ -296,7 +327,23 @@ export const TopNav: React.FC<TopNavProps> = ({
         >
           Discovery
         </button>
+        {isManager && (
+          <button
+            id="mobile-nav-admin"
+            type="button"
+            onClick={() => onTabChange('admin')}
+            className={`px-3 py-1 text-xs rounded-full font-medium transition-colors flex items-center gap-1 ${
+              activeTab === 'admin'
+                ? 'bg-[#14213d] text-white'
+                : 'text-[#14213d]/60 hover:text-[#14213d]'
+            }`}
+          >
+            <Shield className="w-3 h-3 text-[#fca311]" />
+            Admin
+          </button>
+        )}
       </div>
     </header>
   );
 };
+

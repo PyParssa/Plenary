@@ -52,7 +52,7 @@ export interface ReflectionSession {
   completed?: boolean;
 }
 
-export type ActiveTab = 'deck' | 'vault' | 'discovery' | 'account';
+export type ActiveTab = 'deck' | 'vault' | 'discovery' | 'account' | 'admin';
 
 export interface GuestProfile {
   email: string;
@@ -68,4 +68,62 @@ export interface LlmSettings {
   provider: LlmProvider;
   apiKey: string;
   model: string;
+}
+
+export interface AdminCard extends QuestionCard {
+  published: boolean;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  displayName: string | null;
+  role: UserRole;
+  createdAt: string;
+  vouchCount: number;
+  reflectionCount: number;
+  cardsCreated: number;
+}
+
+export interface AnalyticsOverview {
+  totalUsers: number;
+  totalCards: number;
+  publishedCards: number;
+  unpublishedCards: number;
+  totalVouches: number;
+  vouchesToday: number;
+  vouchesThisWeek: number;
+  topCards: {
+    id: string;
+    question: string;
+    author: string;
+    category?: string;
+    vouchCount: number;
+    published?: boolean;
+  }[];
+  mostActiveReflectors: {
+    id: string;
+    email: string;
+    reflectionCount: number;
+  }[];
+}
+
+export interface BulkImportCard {
+  category: string;
+  author: string;
+  author_avatar?: string;
+  author_bio?: string;
+  book: string;
+  question: string;
+  backstory: string;
+  related_inquiries?: string[];
+  published?: boolean;
+}
+
+export interface BulkImportResult {
+  imported: number;
+  failed: number;
+  errors: { index: number; message: string }[];
 }
