@@ -16,19 +16,25 @@ export function setTourCompleted(completed = true): void {
 }
 
 /**
- * Returns the best visible selector between desktop and mobile targets
+ * Returns the best visible DOM element between desktop and mobile targets
  */
-function getTargetSelector(desktopSel: string, mobileSel?: string): string {
-  if (mobileSel && window.innerWidth < 768) {
+function getTargetElement(desktopSel: string, mobileSel?: string): Element | undefined {
+  if (window.innerWidth < 768 && mobileSel) {
     const mobileEl = document.querySelector(mobileSel);
-    if (mobileEl) return mobileSel;
+    if (mobileEl) return mobileEl;
   }
-  return desktopSel;
+  const desktopEl = document.querySelector(desktopSel);
+  if (desktopEl) return desktopEl;
+  if (mobileSel) {
+    const fallbackMobile = document.querySelector(mobileSel);
+    if (fallbackMobile) return fallbackMobile;
+  }
+  return undefined;
 }
 
 export const TOUR_STEPS: DriveStep[] = [
   {
-    element: '[data-tour="tour-first-card"]',
+    element: () => getTargetElement('[data-tour="tour-first-card"]') as Element,
     popover: {
       title: 'The Inquiry Deck',
       description:
@@ -38,7 +44,7 @@ export const TOUR_STEPS: DriveStep[] = [
     },
   },
   {
-    element: '[data-tour="tour-vouch-btn"]',
+    element: () => getTargetElement('[data-tour="tour-vouch-btn"]') as Element,
     popover: {
       title: '3-Second Vouch',
       description:
@@ -48,7 +54,7 @@ export const TOUR_STEPS: DriveStep[] = [
     },
   },
   {
-    element: () => getTargetSelector('[data-tour="tour-nav-vault"]', '[data-tour="tour-nav-vault-mobile"]'),
+    element: () => getTargetElement('[data-tour="tour-nav-vault"]', '[data-tour="tour-nav-vault-mobile"]') as Element,
     popover: {
       title: 'Your Personal Vault',
       description:
@@ -58,7 +64,7 @@ export const TOUR_STEPS: DriveStep[] = [
     },
   },
   {
-    element: '[data-tour="tour-reflect-btn"]',
+    element: () => getTargetElement('[data-tour="tour-reflect-btn"]') as Element,
     popover: {
       title: 'Socratic AI Reflection',
       description:
@@ -68,7 +74,7 @@ export const TOUR_STEPS: DriveStep[] = [
     },
   },
   {
-    element: () => getTargetSelector('[data-tour="tour-nav-discovery"]', '[data-tour="tour-nav-discovery-mobile"]'),
+    element: () => getTargetElement('[data-tour="tour-nav-discovery"]', '[data-tour="tour-nav-discovery-mobile"]') as Element,
     popover: {
       title: 'Discovery & Authors',
       description:
@@ -78,7 +84,7 @@ export const TOUR_STEPS: DriveStep[] = [
     },
   },
   {
-    element: '[data-tour="tour-nav-account"]',
+    element: () => getTargetElement('[data-tour="tour-nav-account"]') as Element,
     popover: {
       title: 'Personal Account',
       description:
