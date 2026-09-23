@@ -41,19 +41,35 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
         content={"detail": exc.detail, "error": exc.detail},
     )
 
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.exception(f"Unhandled server error on {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "error": str(exc)},
+    )
+
+
 # Configure CORS
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
+default_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+    "https://plenary-illuminating-questions.vercel.app",
+]
+
 if allowed_origins_env:
     allowed_origins = [
         origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()
     ]
+    for def_orig in default_origins:
+        if def_orig not in allowed_origins:
+            allowed_origins.append(def_orig)
 else:
-    allowed_origins = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ]
+    allowed_origins = default_origins
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,6 +78,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 

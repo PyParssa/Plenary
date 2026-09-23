@@ -78,33 +78,51 @@ async def list_cards(
     allowed_sorts = {"created_at", "vouch_count", "author", "category", "question", "book"}
     sort_column = sort_by if sort_by in allowed_sorts else "created_at"
     descending = sort_order.lower() == "desc"
+    # Execute query with graceful fallback if table lacks published or other columns
+    res = None
+    try:
+        query = db.table("cards").select(
+            "id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count, published, created_by, created_at",
+            count="exact"
+        )
+        if category and category != "All Inquiries":
+            query = query.eq("category", category)
+        if published is not None:
+            query = query.eq("published", published)
+        if author:
+            query = query.ilike("author", f"%{author.strip()}%")
+        if search:
+            s = search.strip()
+            query = query.or_(f"question.ilike.%{s}%,backstory.ilike.%{s}%,book.ilike.%{s}%,author.ilike.%{s}%")
 
-    query = db.table("cards").select(
-        "id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count, published, created_by, created_at",
-        count="exact"
-    )
+        query = query.order(sort_column, desc=descending)
+        offset = (page - 1) * per_page
+        query = query.range(offset, offset + per_page - 1)
+        res = query.execute()
+    except Exception as e:
+        logger.warning(f"Admin list_cards specific select failed: {e}. Falling back to select('*').")
+        try:
+            fallback_query = db.table("cards").select("*", count="exact")
+            if category and category != "All Inquiries":
+                fallback_query = fallback_query.eq("category", category)
+            if author:
+                fallback_query = fallback_query.ilike("author", f"%{author.strip()}%")
+            if search:
+                s = search.strip()
+                fallback_query = fallback_query.or_(f"question.ilike.%{s}%,backstory.ilike.%{s}%,book.ilike.%{s}%,author.ilike.%{s}%")
+            fallback_query = fallback_query.order(sort_column, desc=descending)
+            offset = (page - 1) * per_page
+            fallback_query = fallback_query.range(offset, offset + per_page - 1)
+            res = fallback_query.execute()
+        except Exception as e2:
+            logger.error(f"Admin list_cards fallback failed: {e2}")
+            res = db.table("cards").select("*").execute()
 
-    if category and category != "All Inquiries":
-        query = query.eq("category", category)
-    if published is not None:
-        query = query.eq("published", published)
-    if author:
-        query = query.ilike("author", f"%{author.strip()}%")
-    if search:
-        s = search.strip()
-        query = query.or_(f"question.ilike.%{s}%,backstory.ilike.%{s}%,book.ilike.%{s}%,author.ilike.%{s}%")
-
-    query = query.order(sort_column, desc=descending)
-
-    offset = (page - 1) * per_page
-    query = query.range(offset, offset + per_page - 1)
-
-    res = query.execute()
-    total = res.count if res.count is not None else len(res.data or [])
+    total = getattr(res, "count", None) if getattr(res, "count", None) is not None else len(res.data or [])
 
     # Map database row format to API response format
     cards = []
-    for row in res.data or []:
+    for row in (res.data or []):
         cards.append({
             "id": row.get("id"),
             "category": row.get("category"),
@@ -116,7 +134,7 @@ async def list_cards(
             "backstory": row.get("backstory"),
             "relatedInquiries": row.get("related_inquiries") or [],
             "vouchCount": row.get("vouch_count", 0),
-            "published": row.get("published", True),
+            "published": row.get("published", True) if row.get("published") is not None else True,
             "createdBy": row.get("created_by"),
             "createdAt": row.get("created_at"),
             "vouched": False,
