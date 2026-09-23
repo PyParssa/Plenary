@@ -26,14 +26,28 @@ import { applyVouches, fetchCards, loadUserData, removeVouch, saveCard, savePref
 import { getApiUrl } from './lib/api';
 import { isTourCompleted, setTourCompleted, startTour, replayTour } from './tour/TourManager';
 
-const getInitialUserRole = (email?: string | null, existingRole?: UserRole): UserRole => {
-  if (existingRole) return existingRole;
-  if (!email) return 'user';
+export const getManagerEmails = (): string[] => {
   const managerEmails = (import.meta.env.VITE_MANAGER_EMAILS || '')
     .split(',')
     .map((e: string) => e.trim().toLowerCase())
     .filter(Boolean);
-  return managerEmails.includes(email.trim().toLowerCase()) ? 'manager' : 'user';
+  return managerEmails;
+};
+
+export const isManagerEmail = (email?: string | null): boolean => {
+  if (!email) return false;
+  return getManagerEmails().includes(email.trim().toLowerCase());
+};
+
+export const isManagerUser = (email?: string | null, role?: UserRole): boolean => {
+  if (isManagerEmail(email)) return true;
+  return role === 'manager';
+};
+
+const resolveUserRole = (email?: string | null, existingRole?: UserRole): UserRole => {
+  if (isManagerEmail(email)) return 'manager';
+  if (existingRole) return existingRole;
+  return 'user';
 };
 
 export default function App() {
@@ -219,7 +233,7 @@ export default function App() {
       displayName,
       createdAt: Date.now(),
       selectedAtmospheres: guestProfile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
-      role: guestProfile?.role ?? getInitialUserRole(normalizedEmail),
+      role: resolveUserRole(normalizedEmail, guestProfile?.role),
     });
     if (userId) void saveProfile(userId, normalizedEmail, displayName).catch((error) => console.error('Could not save profile:', error));
     setIsAccountOpen(false);
@@ -284,12 +298,13 @@ export default function App() {
         const saved = await loadUserData(session.user.id);
         if (!isMounted) return;
         const selectedAtmospheres = saved.profile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]');
+        const resolvedRole = resolveUserRole(saved.profile?.email ?? session.user.email, saved.profile?.role);
         setGuestProfile({
           email: saved.profile?.email ?? session.user.email ?? '',
           displayName: saved.profile?.displayName ?? session.user.user_metadata?.display_name,
           createdAt: saved.profile?.createdAt ?? Date.now(),
           selectedAtmospheres,
-          role: saved.profile?.role ?? 'user',
+          role: resolvedRole,
         });
         setCards((current) => saved.cards.length > 0
           ? applyVouches(saved.cards, saved.vouchedCardIds)
@@ -302,7 +317,7 @@ export default function App() {
           email: session.user.email,
           createdAt: Date.now(),
           selectedAtmospheres: JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
-          role: getInitialUserRole(sessionEmail),
+          role: resolveUserRole(sessionEmail),
         });
         setIsJourneyOpen(!localStorage.getItem('plenary_journey'));
       }
@@ -477,6 +492,7 @@ export default function App() {
   };
 
   const vouchedCards = cards.filter((c) => c.vouched);
+  const isManager = isManagerUser(guestProfile?.email, guestProfile?.role);
 
   return (
     <div
@@ -498,7 +514,7 @@ export default function App() {
         onToggleNightMode={() => setIsNightMode(!isNightMode)}
         accountEmail={guestProfile?.email}
         accountName={guestProfile?.displayName}
-        isManager={guestProfile?.role === 'manager'}
+        isManager={isManager}
       />
 
       {/* Main Content Body */}
@@ -561,7 +577,7 @@ export default function App() {
               <DiscoveryView
                 authors={authors}
                 cards={cards}
-                canCreateCards={guestProfile?.role === 'creator' || guestProfile?.role === 'manager'}
+                canCreateCards={isManager || guestProfile?.role === 'creator'}
                 onAddCustomCard={(newCardData) => requireAccount(() => handleAddCustomCard(newCardData))}
                 onSelectAuthorFilter={handleSelectDiscoveryAuthor}
                 onSelectCategory={handleSelectDiscoveryCategory}
@@ -598,7 +614,7 @@ export default function App() {
               transition={{ duration: 0.18 }}
               className="w-full"
             >
-              {guestProfile?.role === 'manager' ? (
+              {isManager ? (
                 <AdminView
                   token={sessionToken}
                   currentUserId={userId ?? undefined}

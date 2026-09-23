@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
-from auth import AuthenticatedUser, get_supabase_admin, require_manager
+from auth import AuthenticatedUser, get_manager_emails, get_supabase_admin, require_manager
 
 logger = logging.getLogger("plenary.admin")
 
@@ -361,14 +361,17 @@ async def list_users(
         except Exception as e:
             logger.warning(f"Error fetching user stats: {e}")
 
+    manager_emails = get_manager_emails()
     users_with_stats = []
     for p in profiles:
         uid = p.get("id")
+        user_email = (p.get("email") or "").strip().lower()
+        user_role = "manager" if user_email in manager_emails else p.get("role", "user")
         users_with_stats.append({
             "id": uid,
             "email": p.get("email"),
             "displayName": p.get("display_name"),
-            "role": p.get("role", "user"),
+            "role": user_role,
             "createdAt": p.get("created_at"),
             "vouchCount": vouch_counts.get(uid, 0),
             "reflectionCount": reflection_counts.get(uid, 0),
@@ -406,6 +409,18 @@ async def update_user_role(
         )
 
     db = get_supabase_admin()
+    manager_emails = get_manager_emails()
+
+    # Prevent demoting any user configured in manager_emails environment variable
+    target_profile_res = db.table("profiles").select("email").eq("id", user_id).maybe_single().execute()
+    if target_profile_res.data:
+        target_email = (target_profile_res.data.get("email") or "").strip().lower()
+        if target_email in manager_emails and target_role != "manager":
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot demote an administrator configured in manager emails environment."
+            )
+
     res = db.table("profiles").update({
         "role": target_role,
         "updated_at": datetime.now(timezone.utc).isoformat()

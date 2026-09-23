@@ -17,6 +17,12 @@ def get_supabase_admin() -> Client:
     return create_client(supabase_url, service_role_key)
 
 
+def get_manager_emails() -> set:
+    """Returns the set of email addresses configured with manager privileges."""
+    raw = os.getenv("VITE_MANAGER_EMAILS") or os.getenv("MANAGER_EMAILS") or ""
+    return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
+
 def extract_bearer_token(authorization: Optional[str]) -> str:
     """Extracts the Bearer token string from an Authorization header."""
     if not authorization:
@@ -61,22 +67,27 @@ async def get_current_user(
         )
     
     user_id = str(user.id)
-    user_email = getattr(user, "email", "") or ""
-    
-    # Fetch role from profiles table
-    role = "user"
-    try:
-        profile_res = (
-            admin_client.table("profiles")
-            .select("role")
-            .eq("id", user_id)
-            .maybe_single()
-            .execute()
-        )
-        if profile_res.data and isinstance(profile_res.data, dict):
-            role = profile_res.data.get("role", "user") or "user"
-    except Exception:
-        pass
+    user_email = (getattr(user, "email", "") or "").strip().lower()
+    manager_emails = get_manager_emails()
+
+    # If user's email is in manager_emails environment variable, grant full manager privileges
+    if user_email and user_email in manager_emails:
+        role = "manager"
+    else:
+        # Fetch role from profiles table
+        role = "user"
+        try:
+            profile_res = (
+                admin_client.table("profiles")
+                .select("role")
+                .eq("id", user_id)
+                .maybe_single()
+                .execute()
+            )
+            if profile_res.data and isinstance(profile_res.data, dict):
+                role = profile_res.data.get("role", "user") or "user"
+        except Exception:
+            pass
     
     return AuthenticatedUser(
         id=user_id,
@@ -89,10 +100,13 @@ async def require_manager(
     user: AuthenticatedUser = Depends(get_current_user)
 ) -> AuthenticatedUser:
     """Dependency that enforces manager role. Returns 403 if not manager."""
-    if user.role != "manager":
+    manager_emails = get_manager_emails()
+    is_manager = (user.email.strip().lower() in manager_emails) or (user.role == "manager")
+    if not is_manager:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Manager role required"
         )
     return user
+
 

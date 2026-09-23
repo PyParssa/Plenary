@@ -66,7 +66,7 @@ app.add_middleware(
 
 
 from admin import router as admin_router
-from auth import extract_bearer_token, get_supabase_admin
+from auth import extract_bearer_token, get_manager_emails, get_supabase_admin
 
 # Mount routers
 app.include_router(admin_router)
@@ -204,13 +204,20 @@ async def account_bootstrap(authorization: Optional[str] = Header(None)):
         )
     )
 
+    manager_emails = get_manager_emails()
+    is_env_manager = user.email.strip().lower() in manager_emails
+
+    upsert_data = {
+        "id": str(user.id),
+        "email": user.email,
+        "display_name": display_name,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if is_env_manager:
+        upsert_data["role"] = "manager"
+
     try:
-        admin_client.table("profiles").upsert({
-            "id": str(user.id),
-            "email": user.email,
-            "display_name": display_name,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }).execute()
+        admin_client.table("profiles").upsert(upsert_data).execute()
     except Exception as e:
         logger.error(f"Profiles upsert error: {e}")
         raise HTTPException(

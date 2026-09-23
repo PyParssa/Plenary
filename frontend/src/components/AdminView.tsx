@@ -1028,6 +1028,13 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   ) : (
                     usersList.map((user) => {
                       const isSelf = user.id === currentUserId;
+                      const managerEmails = (import.meta.env.VITE_MANAGER_EMAILS || '')
+                        .split(',')
+                        .map((e: string) => e.trim().toLowerCase())
+                        .filter(Boolean);
+                      const isSystemManager = managerEmails.includes(user.email.trim().toLowerCase());
+                      const isLocked = isSelf || isSystemManager;
+
                       return (
                         <tr key={user.id} className="hover:bg-[#e5e5e5]/20 transition-colors">
                           <td className="p-3">
@@ -1038,21 +1045,32 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   YOU
                                 </span>
                               )}
+                              {isSystemManager && (
+                                <span className="px-1.5 py-0.2 bg-blue-100 text-blue-800 rounded text-[9px] font-bold">
+                                  SYS ADMIN
+                                </span>
+                              )}
                             </div>
                             <div className="text-[11px] text-[#14213d]/60 font-mono">{user.email}</div>
                           </td>
                           <td className="p-3">
                             <select
-                              value={user.role}
-                              disabled={isSelf}
+                              value={isSystemManager ? 'manager' : user.role}
+                              disabled={isLocked}
                               onChange={(e) => {
                                 const newRole = e.target.value as UserRole;
                                 setRoleChangePending({ user, newRole });
                               }}
                               className={`px-2.5 py-1 text-xs font-semibold rounded-lg border border-[#e5e5e5] bg-white cursor-pointer ${
-                                isSelf ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:border-[#14213d]'
+                                isLocked ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:border-[#14213d]'
                               }`}
-                              title={isSelf ? 'Cannot change your own role' : 'Change user role'}
+                              title={
+                                isSystemManager
+                                  ? 'System manager configured via environment variable'
+                                  : isSelf
+                                  ? 'Cannot change your own role'
+                                  : 'Change user role'
+                              }
                             >
                               <option value="user">User</option>
                               <option value="creator">Creator</option>

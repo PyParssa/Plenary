@@ -217,7 +217,48 @@ class AdminRoutesTestCase(unittest.TestCase):
             self.assertIn("topCards", data)
             self.assertIn("mostActiveReflectors", data)
 
+    def test_manager_email_env_privilege(self):
+        """User whose email is in VITE_MANAGER_EMAILS automatically receives full manager privileges."""
+        env_manager = AuthenticatedUser(id="env-1", email="superadmin@example.com", role="user")
+        app.dependency_overrides[get_current_user] = lambda: env_manager
+
+        mock_db = MagicMock()
+        mock_query = MagicMock()
+        mock_db.table.return_value = mock_query
+        mock_query.select.return_value = mock_query
+        mock_query.order.return_value = mock_query
+        mock_query.range.return_value = mock_query
+        mock_query.execute.return_value = MagicMock(data=[], count=0)
+
+        with patch.dict("os.environ", {"VITE_MANAGER_EMAILS": "superadmin@example.com,other@example.com"}):
+            with patch("admin.get_supabase_admin", return_value=mock_db):
+                response = self.client.get("/api/admin/cards")
+                self.assertEqual(response.status_code, 200)
+
+    def test_demote_env_manager_forbidden(self):
+        """Attempting to demote a manager configured via environment settings is rejected."""
+        caller = AuthenticatedUser(id="m-1", email="admin@example.com", role="manager")
+        app.dependency_overrides[require_manager] = lambda: caller
+
+        mock_db = MagicMock()
+        mock_table = MagicMock()
+        mock_db.table.return_value = mock_table
+        mock_table.select.return_value = mock_table
+        mock_table.eq.return_value = mock_table
+        mock_table.maybe_single.return_value = mock_table
+        mock_table.execute.return_value = MagicMock(data={"email": "superadmin@example.com"})
+
+        with patch.dict("os.environ", {"VITE_MANAGER_EMAILS": "superadmin@example.com"}):
+            with patch("admin.get_supabase_admin", return_value=mock_db):
+                response = self.client.patch(
+                    "/api/admin/users/target-user-id/role",
+                    json={"role": "user"},
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("cannot demote an administrator configured in manager emails", response.json().get("detail", "").lower())
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
