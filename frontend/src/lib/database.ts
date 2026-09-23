@@ -11,7 +11,7 @@ export async function fetchCards(): Promise<QuestionCard[]> {
       .from('cards')
       .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries');
     if (!fallback.error && fallback.data) {
-      data = fallback.data;
+      data = fallback.data as any;
       error = null;
     }
   }
@@ -49,13 +49,13 @@ export async function loadUserData(userId: string): Promise<{
   if (vouchesResult.error) throw vouchesResult.error;
   if (reflectionsResult.error) throw reflectionsResult.error;
 
-  let cardRows = cardsResult.data;
+  let cardRows = cardsResult.data as any[];
   if (cardsResult.error) {
     const fallbackCards = await supabase
       .from('cards')
       .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries');
     if (!fallbackCards.error && fallbackCards.data) {
-      cardRows = fallbackCards.data;
+      cardRows = fallbackCards.data as any[];
     } else {
       throw cardsResult.error;
     }

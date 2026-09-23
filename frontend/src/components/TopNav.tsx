@@ -89,6 +89,7 @@ export const TopNav: React.FC<TopNavProps> = ({
 
           <button
             id="nav-pill-vault"
+            data-tour="tour-nav-vault"
             type="button"
             onClick={() => onTabChange('vault')}
             className={`px-7 py-1.5 text-xs rounded-full transition-all duration-200 outline-none flex items-center gap-1.5 ${
@@ -107,6 +108,7 @@ export const TopNav: React.FC<TopNavProps> = ({
 
           <button
             id="nav-pill-authors"
+            data-tour="tour-nav-discovery"
             type="button"
             onClick={() => onTabChange('discovery')}
             className={`px-7 py-1.5 text-xs rounded-full transition-all duration-200 outline-none ${
@@ -143,7 +145,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           </button>
 
           {/* Clean Avatar Profile Icon with Dropdown */}
-          <div className="relative">
+          <div className="relative" data-tour="tour-nav-account">
             <button
               id="user-profile-menu-button"
               type="button"
@@ -255,6 +257,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         </button>
         <button
           id="mobile-nav-vault"
+          data-tour="tour-nav-vault-mobile"
           type="button"
           onClick={() => onTabChange('vault')}
           className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
@@ -267,6 +270,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         </button>
         <button
           id="mobile-nav-authors"
+          data-tour="tour-nav-discovery-mobile"
           type="button"
           onClick={() => onTabChange('discovery')}
           className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none" className="w-full h-full">
+  <defs>
+    <radialGradient id="vaultGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fca311" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#fca311" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="vaultCard" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f8f9fa"/>
+    </linearGradient>
+  </defs>
+  <!-- Background subtle glow -->
+  <circle cx="120" cy="120" r="100" fill="url(#vaultGlow)" />
+  <circle cx="120" cy="120" r="82" stroke="#e5e5e5" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.6"/>
+  
+  <!-- Stacked angled cards representing the vault repository -->
+  <rect x="68" y="74" width="94" height="114" rx="16" transform="rotate(-9 115 131)" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5" opacity="0.5"/>
+  <rect x="78" y="68" width="94" height="114" rx="16" transform="rotate(7 125 125)" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5" opacity="0.75"/>
+  
+  <!-- Main centered card -->
+  <rect x="75" y="62" width="90" height="116" rx="18" fill="url(#vaultCard)" stroke="#14213d" stroke-width="1.5" stroke-opacity="0.15" />
+  
+  <!-- Bookmark motif in card center -->
+  <path d="M106 82C106 80.8954 106.895 80 108 80H132C133.105 80 134 80.8954 134 82V122L120 113L106 122V82Z" fill="#fca311" />
+  
+  <!-- Subtle card lines -->
+  <rect x="92" y="132" width="56" height="4" rx="2" fill="#14213d" opacity="0.2"/>
+  <rect x="99" y="142" width="42" height="3" rx="1.5" fill="#14213d" opacity="0.12"/>
+  
+  <!-- Floating spark / embers -->
+  <circle cx="168" cy="80" r="3.5" fill="#fca311" />
+  <circle cx="70" cy="162" r="2.5" fill="#fca311" opacity="0.6"/>
+  <circle cx="158" cy="172" r="2" fill="#14213d" opacity="0.3"/>
+</svg>
+

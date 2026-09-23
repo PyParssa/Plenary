@@ -13,6 +13,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
+import { EmptyState } from './EmptyState';
 
 interface DeckViewProps {
   cards: QuestionCard[];
@@ -37,17 +38,12 @@ export const DeckView: React.FC<DeckViewProps> = ({
   // Fallback if cards array is empty
   if (cards.length === 0) {
     return (
-      <div className="py-24 text-center max-w-md mx-auto px-4">
-        <div className="w-16 h-16 rounded-full bg-[#e5e5e5]/40 border border-[#e5e5e5] mx-auto flex items-center justify-center mb-4">
-          <BookOpen className="w-7 h-7 text-[#14213d]/40" />
-        </div>
-        <h3 className="font-serif-clean text-2xl text-[#14213d] font-normal mb-2">
-          The Deck is Quiet
-        </h3>
-        <p className="text-xs text-[#14213d]/60 leading-relaxed mb-6">
-          No questions found under this filter. Try selecting 'All Inquiries' or craft a new illuminating card in Discovery.
-        </p>
-      </div>
+      <EmptyState
+        testId="empty-deck-state"
+        illustration="/assets/empty-states/no-results.svg"
+        headline="The Deck is Quiet"
+        subtext="No questions found under this filter. Try selecting 'All Inquiries' or craft a new illuminating card in Discovery."
+      />
     );
   }
 
@@ -184,6 +180,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
   return (
     <motion.div
       id={`card-${card.id}`}
+      data-tour="tour-first-card"
       style={{ x, rotate, opacity }}
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
@@ -285,7 +282,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
           </button>
 
           {/* Core VOUCH Button (3s Hold Mechanic) */}
-          <div className="relative">
+          <div className="relative" data-tour="tour-vouch-btn">
             <VouchButton
               id={`vouch-btn-${card.id}`}
               isVouched={card.vouched}
@@ -294,6 +291,21 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
               vouchCount={card.vouchCount}
             />
           </div>
+
+          {/* Reflect icon button for direct Socratic AI access */}
+          <button
+            id={`reflect-card-btn-${card.id}`}
+            type="button"
+            data-tour="tour-reflect-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenReflection();
+            }}
+            title="Reflect with Socratic AI"
+            className="w-12 h-12 rounded-full border border-[#14213d] flex items-center justify-center opacity-70 hover:opacity-100 hover:border-[#fca311] transition-all bg-white outline-none cursor-pointer group"
+          >
+            <Sparkles className="w-4 h-4 stroke-[#14213d] group-hover:stroke-[#fca311] transition-colors" />
+          </button>
 
           {/* Share Button */}
           <button

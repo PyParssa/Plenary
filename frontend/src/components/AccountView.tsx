@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GuestProfile, LlmProvider, LlmSettings } from '../types';
-import { AlertTriangle, KeyRound, Save, Trash2 } from 'lucide-react';
+import { AlertTriangle, Compass, KeyRound, RotateCcw, Save, Trash2 } from 'lucide-react';
 
 interface AccountViewProps {
   profile: GuestProfile | null;
@@ -8,6 +8,7 @@ interface AccountViewProps {
   onDeleteAccount: () => Promise<void>;
   llmSettings: LlmSettings;
   onSaveLlmSettings: (settings: LlmSettings) => void;
+  onReplayTour?: () => void;
 }
 
 const MODEL_OPTIONS: Record<LlmProvider, Array<{ value: string; label: string }>> = {
@@ -27,7 +28,7 @@ const MODEL_OPTIONS: Record<LlmProvider, Array<{ value: string; label: string }>
   ],
 };
 
-export const AccountView: React.FC<AccountViewProps> = ({ profile, onUpdateProfile, onDeleteAccount, llmSettings, onSaveLlmSettings }) => {
+export const AccountView: React.FC<AccountViewProps> = ({ profile, onUpdateProfile, onDeleteAccount, llmSettings, onSaveLlmSettings, onReplayTour }) => {
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -160,6 +161,26 @@ export const AccountView: React.FC<AccountViewProps> = ({ profile, onUpdateProfi
           </button>
         </form>
         {apiMessage && <p className="mt-3 text-xs text-emerald-700">{apiMessage}</p>}
+      </div>
+
+      {/* Guided Tour Section */}
+      <div className="py-6 border-b border-[#e5e5e5]">
+        <div className="flex items-center gap-2 mb-2">
+          <Compass className="h-4 w-4 text-[#fca311]" />
+          <h2 className="text-xl font-semibold text-[#14213d]">Product Orientation</h2>
+        </div>
+        <p className="text-xs text-[#14213d]/60 max-w-xl mb-4">
+          Want a quick refresher on how Plenary's inquiry deck, 3-second hold vouching, vault, and Socratic reflection work?
+        </p>
+        <button
+          id="replay-tour-btn"
+          type="button"
+          onClick={onReplayTour}
+          className="flex items-center gap-2 rounded-xl bg-white border border-[#14213d] hover:bg-[#14213d] hover:text-white px-4 py-2.5 text-xs font-semibold text-[#14213d] transition-all cursor-pointer shadow-xs group"
+        >
+          <RotateCcw className="h-3.5 w-3.5 text-[#fca311] group-hover:rotate-[-45deg] transition-transform" />
+          <span>Replay Guided Tour</span>
+        </button>
       </div>
 
       <div className="border-t border-red-200 pt-6">

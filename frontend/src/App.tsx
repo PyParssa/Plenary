@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { ActiveTab, GuestProfile, LifeStage, LlmSettings, QuestionCard, ReflectionSession } from './types';
+import { ActiveTab, GuestProfile, LifeStage, LlmSettings, QuestionCard, ReflectionSession, UserRole } from './types';
 import { INITIAL_QUESTIONS, INITIAL_AUTHORS } from './data/initialData';
 import { rankQuestions } from './data/journey';
 import { TopNav } from './components/TopNav';
@@ -22,6 +22,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { supabase } from './lib/supabase';
 import { applyVouches, fetchCards, loadUserData, removeVouch, saveCard, savePreferences, saveProfile, saveReflection, saveVouch } from './lib/database';
 import { getApiUrl } from './lib/api';
+import { isTourCompleted, startTour, replayTour } from './tour/TourManager';
 
 const getInitialUserRole = (email?: string | null, existingRole?: UserRole): UserRole => {
   if (existingRole) return existingRole;
@@ -320,7 +321,9 @@ export default function App() {
       .then((remoteCards) => {
         if (!active || remoteCards.length === 0) return;
         setCards((current) => {
-          const currentVouched = new Map(current.map((c) => [c.id, { vouched: c.vouched, vouchedAt: c.vouchedAt }]));
+          const currentVouched = new Map<string, { vouched: boolean; vouchedAt?: number }>(
+            current.map((c) => [c.id, { vouched: c.vouched, vouchedAt: c.vouchedAt }])
+          );
           return remoteCards.map((rc) => {
             const local = currentVouched.get(rc.id);
             return {
@@ -346,6 +349,20 @@ export default function App() {
     setCards((current) => rankQuestions(current, selectedIds));
     setIsJourneyOpen(false);
     showToast('Your first inquiry has been chosen from your path.');
+
+    // Launch tour for new users who completed the Journey Picker
+    if (!isTourCompleted()) {
+      setTimeout(() => {
+        startTour();
+      }, 500);
+    }
+  };
+
+  const handleReplayTour = () => {
+    setActiveTab('deck');
+    setTimeout(() => {
+      replayTour();
+    }, 250);
   };
 
   const handleTabChange = (tab: ActiveTab) => {
@@ -535,7 +552,14 @@ export default function App() {
               transition={{ duration: 0.18 }}
               className="w-full"
             >
-              <AccountView profile={guestProfile} onUpdateProfile={handleUpdateProfile} onDeleteAccount={handleDeleteAccount} llmSettings={llmSettings} onSaveLlmSettings={handleSaveLlmSettings} />
+              <AccountView
+                profile={guestProfile}
+                onUpdateProfile={handleUpdateProfile}
+                onDeleteAccount={handleDeleteAccount}
+                llmSettings={llmSettings}
+                onSaveLlmSettings={handleSaveLlmSettings}
+                onReplayTour={handleReplayTour}
+              />
             </motion.section>
           )}
         </AnimatePresence>

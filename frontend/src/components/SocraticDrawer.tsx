@@ -3,6 +3,7 @@ import { QuestionCard, ChatMessage, LlmSettings, ReflectionSession } from '../ty
 import { X, Send, Sparkles, Bot, User, Download, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getApiUrl } from '../lib/api';
+import { EmptyState } from './EmptyState';
 
 interface SocraticDrawerProps {
   isOpen: boolean;
@@ -280,22 +281,33 @@ export const SocraticDrawer: React.FC<SocraticDrawerProps> = ({
             id="socratic-chat-messages"
             className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-white"
           >
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+            {messages.length === 0 ? (
+              <EmptyState
+                testId="empty-reflections-state"
+                illustration="/assets/empty-states/empty-reflections.svg"
+                headline="Your first reflection is one question away."
+                subtext="Start a Socratic conversation from any card in your deck."
+                ctaLabel="Begin Inquiry"
+                onCta={handleNewChat}
+              />
+            ) : (
+              messages.map((msg) => (
                 <div
-                  className={`text-xs leading-relaxed max-w-[85%] p-3.5 rounded-2xl ${
-                    msg.role === 'user'
-                      ? 'border border-[#e5e5e5] bg-white text-[#14213d]'
-                      : 'bg-[#e5e5e5]/30 text-[#14213d]'
-                  }`}
+                  key={msg.id}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  <div
+                    className={`text-xs leading-relaxed max-w-[85%] p-3.5 rounded-2xl ${
+                      msg.role === 'user'
+                        ? 'border border-[#e5e5e5] bg-white text-[#14213d]'
+                        : 'bg-[#e5e5e5]/30 text-[#14213d]'
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
 
             {isLoading && (
               <div className="flex justify-start">

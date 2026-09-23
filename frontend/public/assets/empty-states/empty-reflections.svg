@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none" className="w-full h-full">
+  <defs>
+    <radialGradient id="sparkleGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fca311" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#fca311" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Background gentle concentric circles representing thoughtful reflection -->
+  <circle cx="120" cy="120" r="95" fill="url(#sparkleGlow)" />
+  <circle cx="120" cy="120" r="75" stroke="#fca311" stroke-width="1.5" stroke-dasharray="3 4" opacity="0.4"/>
+  <circle cx="120" cy="120" r="50" stroke="#e5e5e5" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- Thoughtful dialogue bubbles / Socratic mirror -->
+  <path d="M78 88C78 74.7452 88.7452 64 102 64H138C151.255 64 162 74.7452 162 88V114C162 127.255 151.255 138 138 138H112L90 154V138H102C88.7452 138 78 127.255 78 114V88Z" fill="#ffffff" stroke="#14213d" stroke-width="2"/>
+  
+  <!-- Dialogue lines representing Socratic exchange -->
+  <circle cx="102" cy="100" r="3.5" fill="#fca311"/>
+  <circle cx="120" cy="100" r="3.5" fill="#fca311"/>
+  <circle cx="138" cy="100" r="3.5" fill="#fca311"/>
+
+  <!-- Guiding ember sparkles -->
+  <path d="M168 62L171 67L176 70L171 73L168 78L165 73L160 70L165 67Z" fill="#fca311" />
+  <path d="M68 152L70 156L74 158L70 160L68 164L66 160L62 158L66 156Z" fill="#fca311" opacity="0.6"/>
+  <circle cx="178" cy="138" r="2.5" fill="#14213d" opacity="0.3"/>
+</svg>
+

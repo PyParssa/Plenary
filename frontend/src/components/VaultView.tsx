@@ -11,6 +11,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { EmptyState } from './EmptyState';
 
 interface VaultViewProps {
   vouchedCards: QuestionCard[];
@@ -121,30 +122,21 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
       {/* Empty State */}
       {vouchedCards.length === 0 ? (
-        <div className="py-20 text-center max-w-md mx-auto">
-          <div className="w-16 h-16 rounded-full bg-[#fca311]/10 border border-[#fca311]/30 mx-auto flex items-center justify-center mb-4">
-            <Bookmark className="w-7 h-7 text-[#fca311]" />
-          </div>
-          <h2 className="font-serif-clean text-2xl text-[#14213d] font-normal mb-2">
-            Your Vault is Empty
-          </h2>
-          <p className="text-xs text-[#14213d]/60 leading-relaxed mb-6">
-            Inquiries you hold for 3 seconds on The Deck are anchored here. Begin exploring questions that confront and illuminate.
-          </p>
-          <button
-            id="empty-vault-go-deck-btn"
-            type="button"
-            onClick={onGoToDeck}
-            className="px-5 py-2.5 rounded-full bg-[#14213d] hover:bg-black text-white text-xs font-medium transition-colors inline-flex items-center gap-2 shadow-xs"
-          >
-            <span>Enter The Deck</span>
-            <ArrowRight className="w-4 h-4 text-[#fca311]" />
-          </button>
-        </div>
+        <EmptyState
+          testId="empty-vault-state"
+          illustration="/assets/empty-states/empty-vault.svg"
+          headline="Your vault is waiting."
+          subtext="Explore the deck and hold on a question that moves you."
+          ctaLabel="Go to Deck"
+          onCta={onGoToDeck}
+        />
       ) : filteredCards.length === 0 ? (
-        <div className="py-16 text-center text-xs text-[#14213d]/60">
-          No vouched questions found matching your filter or search.
-        </div>
+        <EmptyState
+          testId="empty-vault-search-state"
+          illustration="/assets/empty-states/no-results.svg"
+          headline="Nothing matches your search."
+          subtext="Try a different phrase or browse all vouched cards."
+        />
       ) : (
         /* 2-Column Responsive Breathable Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
