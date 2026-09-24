@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Mail } from 'lucide-react';
+import { ArrowRight, Mail, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
 
@@ -136,8 +136,18 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, sel
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#14213d]/70 px-4 backdrop-blur-sm">
+    <div 
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-[#14213d]/70 px-4 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative w-full max-w-md rounded-[28px] bg-white p-7 text-[#14213d] shadow-2xl sm:p-9">
+        <button 
+          onClick={onClose}
+          className="absolute right-6 top-6 rounded-full p-2 text-[#14213d]/40 transition-colors hover:bg-gray-100 hover:text-[#14213d]"
+          aria-label="Close modal"
+        >
+          <X className="h-5 w-5" />
+        </button>
         <div className="mb-7 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fca311]/15 text-[#fca311]"><Mail className="h-5 w-5" /></div>
         <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#fca311]">Save your place</p>
         <h2 className="font-serif-clean text-4xl leading-none">{mode === 'sign-in' ? 'Welcome back.' : mode === 'forgot-password' ? 'Reset your password.' : 'Make this inquiry yours.'}</h2>
