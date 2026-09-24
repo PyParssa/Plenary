@@ -1,25 +1,30 @@
 import React, { useState } from 'react';
-import { AuthorProfile, LifeStage, QuestionCard } from '../types';
+import { LifeStage, QuestionCard } from '../types';
 import {
-  Plus,
-  CheckCircle,
-  BookOpen,
-  Bookmark,
+  DISCOVERY_AUTHORS,
+  DISCOVERY_CATEGORIES,
+  DiscoveryAuthorCard,
+  DiscoveryCategoryCard,
+} from '../data/discoveryData';
+import {
   Sparkles,
-  X,
-  Eye,
+  BookOpen,
+  ArrowRight,
   PenTool,
+  X,
+  Layers,
+  Compass,
+  Plus,
   Quote,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface DiscoveryViewProps {
-  authors: AuthorProfile[];
-  onAddCustomCard: (newCard: Omit<QuestionCard, 'id' | 'vouched' | 'vouchCount'>) => void;
-  onSelectAuthorFilter: (authorName: string) => void;
-  onSelectCategory: (category: LifeStage) => void;
   cards: QuestionCard[];
   canCreateCards: boolean;
+  onAddCustomCard: (newCard: Omit<QuestionCard, 'id' | 'vouched' | 'vouchCount'>) => void;
+  onSelectAuthorFilter: (authorKey: string, label: string) => void;
+  onSelectCategory: (categoryKey: LifeStage, label: string) => void;
 }
 
 const LIFE_STAGE_OPTIONS: LifeStage[] = [
@@ -33,36 +38,30 @@ const LIFE_STAGE_OPTIONS: LifeStage[] = [
 ];
 
 export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
-  authors,
+  cards,
+  canCreateCards,
   onAddCustomCard,
   onSelectAuthorFilter,
   onSelectCategory,
-  cards,
-  canCreateCards,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
 
-  // Check if an author profile name matches a card author string
-  const isAuthorMatch = (authorName: string, cardAuthor: string): boolean => {
-    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
-    const aNorm = norm(authorName);
-    const cNorm = norm(cardAuthor);
-    if (!aNorm || !cNorm) return false;
-    if (aNorm.includes(cNorm) || cNorm.includes(aNorm)) return true;
-    const aWords = aNorm.split(/\s+/).filter((w) => w.length > 2);
-    const cWords = cNorm.split(/\s+/).filter((w) => w.length > 2);
-    return aWords.some((w) => cWords.includes(w));
+  // Helper to count cards matching an author
+  const getAuthorCardCount = (authorKey: string): number => {
+    const key = authorKey.toLowerCase().trim();
+    return cards.filter(
+      (c) => c.published !== false && (c.author.toLowerCase().includes(key) || key.includes(c.author.toLowerCase()))
+    ).length;
   };
 
-  // Compute actual vouches across cards for an author
-  const getAuthorVouches = (name: string) => {
-    return cards
-      .filter((c) => isAuthorMatch(name, c.author))
-      .reduce((sum, c) => sum + (c.vouchCount || 0), 0);
+  // Helper to count cards matching a category
+  const getCategoryCardCount = (categoryKey: LifeStage): number => {
+    return cards.filter(
+      (c) => c.published !== false && c.category.toLowerCase().trim() === categoryKey.toLowerCase().trim()
+    ).length;
   };
 
-  // Form states for "Craft an Illuminating Card"
+  // Form states for "Craft an Illuminating Card" modal
   const [question, setQuestion] = useState('');
   const [backstory, setBackstory] = useState('');
   const [category, setCategory] = useState<LifeStage>('Existential Inquiry');
@@ -73,14 +72,15 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
   const [relatedInquiry2, setRelatedInquiry2] = useState('');
   const [formError, setFormError] = useState('');
 
-  const handleOpenModalWithAuthor = (author?: AuthorProfile) => {
+  const handleOpenModal = (author?: DiscoveryAuthorCard) => {
     if (author) {
       setAuthorName(author.name);
-      setBookTitle(author.booksPublished[0] || '');
-      setAuthorAvatar(author.avatar);
+      setBookTitle('');
+      setAuthorAvatar(author.avatarUrl);
     } else {
       setAuthorName('');
       setBookTitle('');
+      setAuthorAvatar('/assets/default-avatar.svg');
     }
     setFormError('');
     setIsModalOpen(true);
@@ -97,7 +97,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
       return;
     }
     if (!authorName.trim() || !bookTitle.trim()) {
-      setFormError('Please specify the author name and source book.');
+      setFormError('Please specify the author name and source book/speech.');
       return;
     }
 
@@ -128,21 +128,21 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      {/* Top Banner & Craft Trigger */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-[#e5e5e5]">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      {/* Top Banner */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-8 border-b border-[#e5e5e5]">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="w-2 h-2 rounded-full bg-[#fca311]" />
             <span className="text-[11px] font-semibold uppercase tracking-widest text-[#14213d]/50">
-              Creator & Publisher Board
+              Custom Inquiry Decks
             </span>
           </div>
           <h1 className="font-serif-clean text-3xl sm:text-4xl font-normal text-[#14213d]">
             Discovery
           </h1>
-          <p className="text-xs sm:text-sm text-[#14213d]/60 mt-1 max-w-xl">
-            Verified authors, philosophers, and contemplative voices whose inquiries anchor our collective compass.
+          <p className="text-xs sm:text-sm text-[#14213d]/60 mt-1.5 max-w-xl leading-relaxed">
+            Explore focused decks through distinctive intellectual lenses or targeted life transitions.
           </p>
         </div>
 
@@ -150,8 +150,8 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
           <button
             id="craft-illuminating-card-button"
             type="button"
-            onClick={() => handleOpenModalWithAuthor()}
-            className="px-5 py-2.5 rounded-full bg-[#14213d] hover:bg-black text-white text-xs font-medium flex items-center gap-2 transition-colors shadow-xs"
+            onClick={() => handleOpenModal()}
+            className="px-5 py-2.5 rounded-full bg-[#14213d] hover:bg-black text-white text-xs font-medium flex items-center gap-2 transition-colors shadow-xs shrink-0 cursor-pointer self-start md:self-auto"
           >
             <PenTool className="w-3.5 h-3.5 text-[#fca311]" />
             <span>Craft an Illuminating Card</span>
@@ -159,117 +159,170 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
         )}
       </div>
 
-      <div className="py-6 border-b border-[#e5e5e5]">
-        <div className="flex items-center gap-2 mb-3">
-          <BookOpen className="w-3.5 h-3.5 text-[#fca311]" />
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-[#14213d]/60">Browse Categories</h2>
+      {/* SECTION 1: Author Persona Cards ("Voices") */}
+      <div className="py-8 border-b border-[#e5e5e5]">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#fca311]" />
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#14213d]/70">
+              Voices & Thinkers
+            </h2>
+          </div>
+          <span className="text-xs text-[#14213d]/40 hidden sm:inline">
+            What would they ask you?
+          </span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {LIFE_STAGE_OPTIONS.map((stage) => (
-            <button
-              key={stage}
-              type="button"
-              onClick={() => onSelectCategory(stage)}
-              className="px-3 py-1.5 rounded-full border border-[#e5e5e5] bg-white text-xs text-[#14213d]/75 hover:border-[#14213d]/40 hover:text-[#14213d] transition-colors"
-            >
-              {stage}
-            </button>
-          ))}
-        </div>
-      </div>
+        <p className="text-xs text-[#14213d]/60 mb-6 max-w-2xl">
+          Enter a custom deck anchored in the sharp inquiry of a philosopher, founder, or contemplative creator.
+        </p>
 
-      {/* Author Profiles Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-8">
-        {authors.map((author) => {
-          const authorQuestions = cards.filter((c) => isAuthorMatch(author.name, c.author));
+        {/* Author Persona Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {DISCOVERY_AUTHORS.map((author) => {
+            const count = getAuthorCardCount(author.filterKey);
 
-          return (
-            <div
-              key={author.id}
-              id={`author-card-${author.id}`}
-              className="bg-white rounded-3xl border border-[#e5e5e5] p-6 flex flex-col justify-between hover:border-[#14213d]/30 transition-all duration-200 shadow-2xs group"
-            >
-              <div>
-                {/* Profile Header */}
-                <div className="flex items-center gap-3.5 mb-4">
-                  <img
-                    src={author.avatar}
-                    alt={author.name}
-                    className="w-12 h-12 rounded-full object-cover border border-[#e5e5e5]"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = '/assets/default-avatar.svg';
-                    }}
-                  />
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="text-sm font-bold text-[#14213d]">
+            return (
+              <div
+                key={author.id}
+                id={`author-persona-${author.id}`}
+                style={{ backgroundColor: author.accentColor }}
+                onClick={() => onSelectAuthorFilter(author.filterKey, author.name)}
+                className="rounded-3xl border border-[#e5e5e5] p-6 flex flex-col justify-between hover:shadow-md hover:border-[#14213d]/30 transition-all duration-200 cursor-pointer group relative overflow-hidden"
+              >
+                <div>
+                  {/* Top Row: Avatar & Tagline */}
+                  <div className="flex items-center gap-3.5 mb-4">
+                    <img
+                      src={author.avatarUrl}
+                      alt={author.name}
+                      className="w-12 h-12 rounded-full object-cover border border-[#e5e5e5] bg-white shrink-0"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/assets/default-avatar.svg';
+                      }}
+                    />
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#14213d]/50 block">
+                        Perspective
+                      </span>
+                      <h3 className="text-sm font-bold text-[#14213d] group-hover:text-black">
                         {author.name}
                       </h3>
-                      {author.verified && (
-                        <CheckCircle className="w-3.5 h-3.5 text-[#fca311]" />
-                      )}
                     </div>
-                    <span className="text-[11px] text-[#14213d]/60">
-                      {author.role}
+                  </div>
+
+                  {/* Headline Callout: "What would X ask you?" */}
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold text-[#14213d]/85 mb-1.5 flex items-center gap-1.5">
+                      <Quote className="w-3 h-3 text-[#fca311]" />
+                      <span>{author.tagline}</span>
+                    </p>
+                    <p className="font-serif italic text-sm text-[#14213d] leading-snug line-clamp-3 bg-white/70 backdrop-blur-xs p-3 rounded-2xl border border-black/5">
+                      “{author.signatureQuestion}”
+                    </p>
+                  </div>
+
+                  {/* Description / Lens */}
+                  <p className="text-[11px] text-[#14213d]/65 leading-relaxed mb-4">
+                    {author.description}
+                  </p>
+                </div>
+
+                {/* Footer Bar */}
+                <div className="pt-3.5 border-t border-black/10 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#14213d]/60">
+                    <Layers className="w-3.5 h-3.5 text-[#fca311]" />
+                    <span>{count} {count === 1 ? 'inquiry' : 'inquiries'}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {canCreateCards && (
+                      <button
+                        type="button"
+                        title={`Contribute card for ${author.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenModal(author);
+                        }}
+                        className="p-1 rounded-full hover:bg-black/10 text-[#14213d]/70 hover:text-[#14213d] transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    <span className="text-xs font-semibold text-[#14213d] flex items-center gap-1 group-hover:underline underline-offset-4">
+                      <span>Enter Deck</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-[#fca311] transition-transform group-hover:translate-x-0.5" />
                     </span>
                   </div>
                 </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-                {/* Bio */}
-                <p className="text-xs text-[#14213d]/75 leading-relaxed mb-4 line-clamp-3 font-normal">
-                  {author.bio}
-                </p>
+      {/* SECTION 2: Category Cards ("Explore by Theme") */}
+      <div className="py-8">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Compass className="w-4 h-4 text-[#fca311]" />
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#14213d]/70">
+              Explore by Theme
+            </h2>
+          </div>
+          <span className="text-xs text-[#14213d]/40 hidden sm:inline">
+            Choose your terrain
+          </span>
+        </div>
+        <p className="text-xs text-[#14213d]/60 mb-6 max-w-2xl">
+          Immerse in questions curated for specific life moments, career transitions, and deep questions.
+        </p>
 
-                {/* Books Published */}
-                <div className="mb-4">
-                  <div className="text-[10px] uppercase font-semibold tracking-wider text-[#14213d]/40 mb-1.5 flex items-center gap-1">
-                    <BookOpen className="w-3 h-3" /> Published Works
+        {/* Categories Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {DISCOVERY_CATEGORIES.map((cat) => {
+            const count = getCategoryCardCount(cat.filterKey);
+
+            return (
+              <div
+                key={cat.id}
+                id={`category-card-${cat.id}`}
+                style={{ backgroundColor: cat.accentColor }}
+                onClick={() => onSelectCategory(cat.filterKey, cat.label)}
+                className="rounded-3xl border border-[#e5e5e5] p-6 flex flex-col justify-between hover:shadow-md hover:border-[#14213d]/30 transition-all duration-200 cursor-pointer group"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-3xl select-none">{cat.emoji}</span>
+                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/80 border border-black/5 text-[#14213d]/70 font-medium">
+                      {count} {count === 1 ? 'card' : 'cards'}
+                    </span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {author.booksPublished.map((book, idx) => (
-                      <span
-                        key={idx}
-                        className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#e5e5e5]/50 text-[#14213d]/80 border border-[#e5e5e5]"
-                      >
-                        {book}
-                      </span>
-                    ))}
-                  </div>
+
+                  <h3 className="text-base font-bold text-[#14213d] mb-1 group-hover:text-black">
+                    {cat.label}
+                  </h3>
+
+                  <p className="text-xs font-semibold text-[#14213d]/75 mb-2">
+                    {cat.tagline}
+                  </p>
+
+                  <p className="text-[11px] text-[#14213d]/60 leading-relaxed mb-4">
+                    {cat.description}
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-black/10 flex items-center justify-end">
+                  <span className="text-xs font-semibold text-[#14213d] flex items-center gap-1 group-hover:underline underline-offset-4">
+                    <span>Open Theme Deck</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-[#fca311] transition-transform group-hover:translate-x-0.5" />
+                  </span>
                 </div>
               </div>
-
-              {/* Stats & Quick Actions */}
-              <div className="pt-4 border-t border-[#e5e5e5] flex items-center justify-between">
-                <div className="flex items-center gap-1 text-[11px] text-[#14213d]/60 font-mono">
-                  <Bookmark className="w-3.5 h-3.5 text-[#fca311]" />
-                  <span>{getAuthorVouches(author.name).toLocaleString()} vouches</span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => onSelectAuthorFilter(author.name)}
-                  className="text-xs text-[#14213d] hover:text-black font-semibold flex items-center gap-1 hover:underline underline-offset-4"
-                >
-                  <Eye className="w-3.5 h-3.5 text-[#fca311]" />
-                  <span>View Cards</span>
-                </button>
-
-                {canCreateCards && (
-                  <button
-                    id={`craft-for-author-${author.id}`}
-                    type="button"
-                    onClick={() => handleOpenModalWithAuthor(author)}
-                    className="text-xs text-[#14213d] hover:text-black font-semibold flex items-center gap-1 hover:underline underline-offset-4"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-[#fca311]" />
-                    <span>Contribute Card</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* "Craft an Illuminating Card" Modal */}
@@ -308,7 +361,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1 rounded-full hover:bg-[#e5e5e5]/50 text-[#14213d]/60 hover:text-[#14213d]"
+                  className="p-1 rounded-full hover:bg-[#e5e5e5]/50 text-[#14213d]/60 hover:text-[#14213d] cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -333,7 +386,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
                     placeholder="e.g. What would you attempt if you knew failure was not fatal?"
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-[#e5e5e5] focus:border-[#14213d] outline-none text-[#14213d] font-serif-clean text-base"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-[#e5e5e5] focus:border-[#14213d] outline-none text-[#14213d] font-serif text-base"
                   />
                 </div>
 
@@ -381,24 +434,24 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                       type="text"
                       value={authorName}
                       onChange={(e) => setAuthorName(e.target.value)}
-                      placeholder="e.g. Viktor Frankl"
+                      placeholder="e.g. Steve Jobs, Naval Ravikant, Viktor Frankl"
                       className="w-full px-3 py-2 text-xs rounded-xl border border-[#e5e5e5] focus:border-[#14213d] outline-none text-[#14213d]"
                     />
                   </div>
                 </div>
 
-                {/* Source Book Title */}
+                {/* Source Book / Speech */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-[#14213d] mb-1">
-                      Source Book / Essay <span className="text-[#fca311]">*</span>
+                      Source Book / Address <span className="text-[#fca311]">*</span>
                     </label>
                     <input
                       id="craft-book-input"
                       type="text"
                       value={bookTitle}
                       onChange={(e) => setBookTitle(e.target.value)}
-                      placeholder="e.g. Man's Search for Meaning"
+                      placeholder="e.g. Stanford Commencement Address (2005)"
                       className="w-full px-3 py-2 text-xs rounded-xl border border-[#e5e5e5] focus:border-[#14213d] outline-none text-[#14213d]"
                     />
                   </div>
@@ -448,24 +501,34 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                 {/* Live Card Preview Section */}
                 <div className="mt-4 pt-4 border-t border-[#e5e5e5]">
                   <div className="flex items-center gap-1.5 text-[10px] uppercase font-semibold tracking-wider text-[#14213d]/40 mb-2">
-                    <Eye className="w-3 h-3" /> Live Deck Preview
+                    <BookOpen className="w-3 h-3" /> Live Deck Preview
                   </div>
                   <div className="p-4 rounded-2xl bg-white border border-[#e5e5e5] shadow-xs">
                     <div className="flex items-center justify-between text-[11px] mb-2">
                       <span className="inline-flex px-3 py-1 bg-[#e5e5e5]/40 rounded-full text-[10px] font-bold uppercase tracking-widest text-[#14213d]">
                         {category}
                       </span>
-                      <span className={`font-semibold italic text-xs ${authorName || bookTitle ? 'text-[#14213d]/60' : 'text-[#14213d]/30 italic'}`}>
-                        {authorName || 'Author'} • {bookTitle || 'Source Book'}
+                      <span
+                        className={`font-semibold italic text-xs ${
+                          authorName || bookTitle ? 'text-[#14213d]/60' : 'text-[#14213d]/30 italic'
+                        }`}
+                      >
+                        {authorName || 'Author'} • {bookTitle || 'Source'}
                       </span>
                     </div>
                     <p
-                      className={`font-serif text-xl font-light italic leading-snug ${question ? 'text-[#14213d]' : 'text-[#14213d]/30 italic'}`}
+                      className={`font-serif text-xl font-light italic leading-snug ${
+                        question ? 'text-[#14213d]' : 'text-[#14213d]/30 italic'
+                      }`}
                       style={{ fontFamily: '"Georgia", serif' }}
                     >
                       “{question || 'Your headline question will appear here...'}”
                     </p>
-                    <p className={`text-[11px] mt-2 line-clamp-2 ${backstory ? 'text-[#14213d]/70' : 'text-[#14213d]/35 italic'}`}>
+                    <p
+                      className={`text-[11px] mt-2 line-clamp-2 ${
+                        backstory ? 'text-[#14213d]/70' : 'text-[#14213d]/35 italic'
+                      }`}
+                    >
                       {backstory || 'Context backstory will illuminate this card...'}
                     </p>
                   </div>
@@ -476,14 +539,14 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 text-xs font-medium text-[#14213d]/60 hover:text-[#14213d] rounded-full"
+                    className="px-4 py-2 text-xs font-medium text-[#14213d]/60 hover:text-[#14213d] rounded-full cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     id="submit-craft-card-btn"
                     type="submit"
-                    className="px-5 py-2 text-xs font-semibold rounded-full bg-[#14213d] hover:bg-black text-white transition-colors flex items-center gap-1.5 shadow-xs"
+                    className="px-5 py-2 text-xs font-semibold rounded-full bg-[#14213d] hover:bg-black text-white transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-[#fca311]" />
                     <span>Publish to Deck</span>

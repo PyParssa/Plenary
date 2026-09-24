@@ -8,7 +8,7 @@ import { ActiveTab, GuestProfile, LifeStage, LlmSettings, QuestionCard, Reflecti
 import { INITIAL_QUESTIONS, INITIAL_AUTHORS } from './data/initialData';
 import { rankQuestions } from './data/journey';
 import { TopNav } from './components/TopNav';
-import { DeckView } from './components/DeckView';
+import { DeckView, DiscoveryFilterState } from './components/DeckView';
 import { VaultView } from './components/VaultView';
 import { DiscoveryView } from './components/DiscoveryView';
 import { AccountView } from './components/AccountView';
@@ -53,10 +53,11 @@ const resolveUserRole = (email?: string | null, existingRole?: UserRole): UserRo
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('deck');
   const [sessionToken, setSessionToken] = useState<string>('');
+  const [discoveryFilter, setDiscoveryFilter] = useState<DiscoveryFilterState | null>(null);
   const [cards, setCards] = useState<QuestionCard[]>(() => {
     const version = localStorage.getItem('plenary_data_version');
-    if (version !== '4') {
-      localStorage.setItem('plenary_data_version', '4');
+    if (version !== '5') {
+      localStorage.setItem('plenary_data_version', '5');
       localStorage.removeItem('plenary_cards');
       return INITIAL_QUESTIONS;
     }
@@ -413,20 +414,32 @@ export default function App() {
 
   const handleTabChange = (tab: ActiveTab) => {
     if (tab === 'vault' && !guestProfile) {
-      requireAccount(() => setActiveTab(tab));
+      requireAccount(() => {
+        setDiscoveryFilter(null);
+        setActiveTab(tab);
+      });
       return;
+    }
+    if (tab !== 'deck') {
+      setDiscoveryFilter(null);
     }
     setActiveTab(tab);
   };
 
-  const handleSelectDiscoveryAuthor = (authorName: string | null) => {
+  const handleSelectDiscoveryAuthor = (authorKey: string, label: string) => {
     setSelectedLifeStage('All Inquiries');
+    setDiscoveryFilter({ type: 'author', key: authorKey, label });
     setActiveTab('deck');
   };
 
-  const handleSelectDiscoveryCategory = (category: LifeStage | null) => {
+  const handleSelectDiscoveryCategory = (categoryKey: LifeStage, label: string) => {
     setSelectedLifeStage('All Inquiries');
+    setDiscoveryFilter({ type: 'category', key: categoryKey, label });
     setActiveTab('deck');
+  };
+
+  const handleClearDiscoveryFilter = () => {
+    setDiscoveryFilter(null);
   };
 
   const handleUnvouchCard = (cardId: string) => {
@@ -511,7 +524,10 @@ export default function App() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         selectedLifeStage={selectedLifeStage}
-        onSelectLifeStage={setSelectedLifeStage}
+        onSelectLifeStage={(stage) => {
+          setSelectedLifeStage(stage);
+          setDiscoveryFilter(null);
+        }}
         onOpenSupport={() => setIsSupportOpen(true)}
         onOpenAccount={handleOpenAccount}
         onLogout={handleLogout}
@@ -546,6 +562,8 @@ export default function App() {
                 onSelectRelated={(inquiry) => {
                   showToast(`Exploring related inquiry: "${inquiry.slice(0, 35)}..."`);
                 }}
+                discoveryFilter={discoveryFilter}
+                onClearDiscoveryFilter={handleClearDiscoveryFilter}
               />
             </motion.section>
           )}
@@ -583,7 +601,6 @@ export default function App() {
               className="w-full"
             >
               <DiscoveryView
-                authors={authors}
                 cards={visibleCards}
                 canCreateCards={isManager || guestProfile?.role === 'creator'}
                 onAddCustomCard={(newCardData) => requireAccount(() => handleAddCustomCard(newCardData))}

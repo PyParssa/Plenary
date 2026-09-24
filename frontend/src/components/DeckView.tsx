@@ -11,9 +11,16 @@ import {
   ArrowRight,
   MessageSquareQuote,
   Flame,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { EmptyState } from './EmptyState';
+
+export interface DiscoveryFilterState {
+  type: 'author' | 'category';
+  key: string;
+  label: string;
+}
 
 interface DeckViewProps {
   cards: QuestionCard[];
@@ -22,6 +29,8 @@ interface DeckViewProps {
   onOpenReflection: (card: QuestionCard) => void;
   onShareCard: (card: QuestionCard) => void;
   onSelectRelated: (inquiryText: string) => void;
+  discoveryFilter?: DiscoveryFilterState | null;
+  onClearDiscoveryFilter?: () => void;
 }
 
 export const DeckView: React.FC<DeckViewProps> = ({
@@ -31,11 +40,25 @@ export const DeckView: React.FC<DeckViewProps> = ({
   onOpenReflection,
   onShareCard,
   onSelectRelated,
+  discoveryFilter,
+  onClearDiscoveryFilter,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
 
-  const visibleCards = cards.filter((c) => c.published !== false);
+  const visibleCards = cards.filter((c) => {
+    if (c.published === false) return false;
+    if (!discoveryFilter) return true;
+    if (discoveryFilter.type === 'author') {
+      const authorQuery = discoveryFilter.key.toLowerCase().trim();
+      const cardAuthor = c.author.toLowerCase().trim();
+      return cardAuthor.includes(authorQuery) || authorQuery.includes(cardAuthor);
+    }
+    if (discoveryFilter.type === 'category') {
+      return c.category.toLowerCase().trim() === discoveryFilter.key.toLowerCase().trim();
+    }
+    return true;
+  });
 
   // Fallback if cards array is empty
   if (visibleCards.length === 0) {
@@ -43,8 +66,14 @@ export const DeckView: React.FC<DeckViewProps> = ({
       <EmptyState
         testId="empty-deck-state"
         illustration="/assets/empty-states/no-results.svg"
-        headline="The Deck is Quiet"
-        subtext="No questions found under this filter. Try selecting 'All Inquiries' or craft a new illuminating card in Discovery."
+        headline={discoveryFilter ? `No Inquiries for "${discoveryFilter.label}"` : 'The Deck is Quiet'}
+        subtext={
+          discoveryFilter
+            ? 'No questions match this custom deck filter yet. Return to the full deck or explore other voices.'
+            : "No questions found under this filter. Try selecting 'All Inquiries' or craft a new illuminating card in Discovery."
+        }
+        ctaLabel={discoveryFilter ? 'Back to Full Deck' : undefined}
+        onCta={discoveryFilter ? onClearDiscoveryFilter : undefined}
       />
     );
   }
@@ -67,6 +96,28 @@ export const DeckView: React.FC<DeckViewProps> = ({
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-6 sm:py-10 flex flex-col items-center">
+      {/* Custom Deck Filter Banner */}
+      {discoveryFilter && (
+        <div className="w-full mb-4 px-4 py-2.5 bg-[#fca311]/10 border border-[#fca311]/30 rounded-2xl flex items-center justify-between gap-3 text-xs text-[#14213d] shadow-2xs">
+          <div className="flex items-center gap-2 truncate">
+            <span className="w-2 h-2 rounded-full bg-[#fca311] shrink-0" />
+            <span className="truncate">
+              Custom Deck: <strong className="font-semibold">{discoveryFilter.label}</strong> ({visibleCards.length} {visibleCards.length === 1 ? 'card' : 'cards'})
+            </span>
+          </div>
+          {onClearDiscoveryFilter && (
+            <button
+              type="button"
+              onClick={onClearDiscoveryFilter}
+              className="px-2.5 py-1 rounded-full bg-white hover:bg-[#14213d] hover:text-white border border-[#e5e5e5] text-[11px] font-medium text-[#14213d] transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs"
+            >
+              <span>Back to Full Deck</span>
+              <X className="w-3 h-3 text-[#fca311]" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Deck Breadcrumb / Counter Indicator */}
       <div className="w-full flex items-center justify-between text-xs text-[#14213d]/60 mb-5 px-2">
         <div className="flex items-center gap-2">
