@@ -711,7 +711,7 @@ async def update_discovery(
     payload: dict,
     user: AuthenticatedUser = Depends(require_manager),
 ):
-    """Update the discovery configuration JSON."""
+    """Update the discovery configuration JSON and sync author avatars to cards."""
     db = get_supabase_admin()
     
     upsert_data = {
@@ -720,7 +720,18 @@ async def update_discovery(
     }
     
     try:
+        # 1. Update the discovery configuration
         res = db.table("app_settings").upsert(upsert_data).execute()
+        
+        # 2. Sync author avatars to all existing cards
+        authors = payload.get("authors", [])
+        for author in authors:
+            name = author.get("name")
+            avatar_url = author.get("avatarUrl")
+            if name and avatar_url:
+                # Update all cards where author name matches exactly
+                db.table("cards").update({"author_avatar": avatar_url}).eq("author", name).execute()
+                
         return {"ok": True, "data": res.data}
     except Exception as e:
         logger.error(f"Failed to update discovery settings: {e}")
