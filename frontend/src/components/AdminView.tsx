@@ -15,6 +15,8 @@ import {
   adminExportCards,
   adminFetchUsers,
   adminUpdateUserRole,
+  adminUpdateUserPassword,
+  adminDeleteUser,
   adminFetchAnalytics,
 } from '../lib/api';
 import {
@@ -37,6 +39,8 @@ import {
   AlertCircle,
   FileText,
   Sparkles,
+  Key,
+  Lock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -124,6 +128,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [usersSortBy, setUsersSortBy] = useState('created_at');
   const [usersSortOrder, setUsersSortOrder] = useState<'asc' | 'desc'>('desc');
   const [roleChangePending, setRoleChangePending] = useState<{ user: AdminUser; newRole: UserRole } | null>(null);
+  const [passwordChangeUser, setPasswordChangeUser] = useState<AdminUser | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   // =========================================================================
   // ANALYTICS STATE
@@ -494,6 +504,44 @@ export const AdminView: React.FC<AdminViewProps> = ({
       setRoleChangePending(null);
     } catch (err: any) {
       onShowToast(err.message || 'Failed to update user role');
+    }
+  };
+
+  const handlePasswordChangeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordChangeUser) return;
+    const pwd = newPassword.trim();
+    if (pwd.length < 6) {
+      onShowToast('Password must be at least 6 characters long');
+      return;
+    }
+    setIsUpdatingPassword(true);
+    try {
+      await adminUpdateUserPassword(token, passwordChangeUser.id, pwd);
+      onShowToast(`Password updated for ${passwordChangeUser.email}`);
+      setPasswordChangeUser(null);
+      setNewPassword('');
+      setShowNewPassword(false);
+    } catch (err: any) {
+      onShowToast(err.message || 'Failed to update user password');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleDeleteUserConfirm = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
+    try {
+      await adminDeleteUser(token, userToDelete.id);
+      onShowToast(`User ${userToDelete.email} and all associated data deleted`);
+      setUsersList((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      setUsersTotal((prev) => Math.max(0, prev - 1));
+      setUserToDelete(null);
+    } catch (err: any) {
+      onShowToast(err.message || 'Failed to delete user');
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -1022,19 +1070,20 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     <th className="p-3 text-center">Reflections</th>
                     <th className="p-3 text-center">Cards Created</th>
                     <th className="p-3 text-right">Joined</th>
+                    <th className="p-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e5e5e5]/60">
                   {usersLoading ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-[#14213d]/50">
+                      <td colSpan={7} className="p-8 text-center text-[#14213d]/50">
                         <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#fca311]" />
                         Loading users...
                       </td>
                     </tr>
                   ) : usersList.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-[#14213d]/50">
+                      <td colSpan={7} className="p-8 text-center text-[#14213d]/50">
                         No registered users found.
                       </td>
                     </tr>
@@ -1095,6 +1144,41 @@ export const AdminView: React.FC<AdminViewProps> = ({
                           <td className="p-3 text-center font-mono font-semibold">{user.cardsCreated}</td>
                           <td className="p-3 text-right text-[11px] text-[#14213d]/60">
                             {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}
+                          </td>
+                          <td className="p-3 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPasswordChangeUser(user);
+                                  setNewPassword('');
+                                  setShowNewPassword(false);
+                                }}
+                                className="p-1.5 rounded-lg border border-[#e5e5e5] text-[#14213d]/70 hover:text-[#14213d] hover:bg-[#e5e5e5]/40 transition-colors cursor-pointer"
+                                title="Change user password"
+                              >
+                                <Key className="w-3.5 h-3.5 text-[#fca311]" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isLocked}
+                                onClick={() => setUserToDelete(user)}
+                                className={`p-1.5 rounded-lg border transition-colors ${
+                                  isLocked
+                                    ? 'border-gray-200 text-gray-300 cursor-not-allowed opacity-40'
+                                    : 'border-red-200 text-red-600 hover:bg-red-50 cursor-pointer'
+                                }`}
+                                title={
+                                  isSystemManager
+                                    ? 'System manager account cannot be deleted'
+                                    : isSelf
+                                    ? 'Cannot delete your own account from admin panel'
+                                    : 'Delete user account'
+                                }
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1492,6 +1576,152 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   className="px-4 py-2 rounded-xl bg-[#14213d] text-white text-xs font-semibold hover:bg-black"
                 >
                   Confirm Role Change
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ===================================================================== */}
+      {/* MODAL: CHANGE USER PASSWORD */}
+      {/* ===================================================================== */}
+      <AnimatePresence>
+        {passwordChangeUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl border border-[#e5e5e5] shadow-2xl max-w-md w-full p-6 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-3">
+                <div className="flex items-center gap-2.5 text-[#14213d]">
+                  <div className="w-8 h-8 rounded-xl bg-[#fca311]/15 text-[#fca311] flex items-center justify-center">
+                    <Key className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#14213d]">Set User Password</h3>
+                    <p className="text-[11px] text-[#14213d]/60 font-mono">{passwordChangeUser.email}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPasswordChangeUser(null)}
+                  className="p-1 rounded-lg hover:bg-[#e5e5e5]/40 text-[#14213d]/60 hover:text-[#14213d]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handlePasswordChangeSubmit} className="space-y-4 pt-1">
+                <div>
+                  <label className="text-xs font-bold text-[#14213d] block mb-1">
+                    New Password (min 6 characters)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter new password"
+                      className="w-full pl-3 pr-10 py-2.5 bg-[#e5e5e5]/20 border border-[#e5e5e5] rounded-xl text-xs text-[#14213d] focus:outline-none focus:border-[#14213d]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#14213d]/50 hover:text-[#14213d]"
+                      title={showNewPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-[#14213d]/50 mt-1">
+                    This will immediately update the authentication credentials for this user account.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#e5e5e5]">
+                  <button
+                    type="button"
+                    onClick={() => setPasswordChangeUser(null)}
+                    className="px-4 py-2 rounded-xl border border-[#e5e5e5] text-xs font-semibold text-[#14213d] hover:bg-[#e5e5e5]/20 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={newPassword.trim().length < 6 || isUpdatingPassword}
+                    className="px-4 py-2 rounded-xl bg-[#14213d] text-white text-xs font-semibold hover:bg-black disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {isUpdatingPassword ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#fca311]" />
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Password'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ===================================================================== */}
+      {/* MODAL: DELETE USER CONFIRMATION */}
+      {/* ===================================================================== */}
+      <AnimatePresence>
+        {userToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl border border-[#e5e5e5] shadow-2xl max-w-md w-full p-6 space-y-4"
+            >
+              <div className="flex items-center gap-3 text-red-600">
+                <AlertCircle className="w-6 h-6" />
+                <h3 className="text-base font-bold text-[#14213d]">Delete User Account?</h3>
+              </div>
+              <p className="text-xs text-[#14213d]/70 leading-relaxed">
+                Are you sure you want to delete the user <span className="font-bold font-mono text-[#14213d]">{userToDelete.email}</span>?
+              </p>
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] text-red-800 space-y-1">
+                <p className="font-semibold">This action is permanent and will cascade-delete:</p>
+                <ul className="list-disc pl-4 space-y-0.5 text-[10px]">
+                  <li>User profile and authentication login</li>
+                  <li>All personal vouches and bookmarks ({userToDelete.vouchCount})</li>
+                  <li>All Socratic reflection sessions ({userToDelete.reflectionCount})</li>
+                  <li>All custom inquiry cards created by this user ({userToDelete.cardsCreated})</li>
+                </ul>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setUserToDelete(null)}
+                  className="px-4 py-2 rounded-xl border border-[#e5e5e5] text-xs font-semibold text-[#14213d] hover:bg-[#e5e5e5]/20 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingUser}
+                  onClick={handleDeleteUserConfirm}
+                  className="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isDeletingUser ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete User Permanently'
+                  )}
                 </button>
               </div>
             </motion.div>

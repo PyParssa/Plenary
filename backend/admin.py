@@ -52,6 +52,10 @@ class RoleUpdateRequest(BaseModel):
     role: str
 
 
+class PasswordUpdateRequest(BaseModel):
+    password: str = Field(min_length=6)
+
+
 # ==========================================
 # Card Management Endpoints
 # ==========================================
@@ -462,6 +466,100 @@ async def update_user_role(
         raise HTTPException(status_code=404, detail="User profile not found.")
 
     return {"ok": True, "id": user_id, "role": target_role}
+
+
+@router.post("/users/{user_id}/password")
+@router.patch("/users/{user_id}/password")
+async def update_user_password(
+    user_id: str,
+    payload: PasswordUpdateRequest,
+    current_user: AuthenticatedUser = Depends(require_manager),
+):
+    """Update a user's password using Supabase admin auth."""
+    new_password = payload.password.strip()
+    if len(new_password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 6 characters long."
+        )
+
+    db = get_supabase_admin()
+
+    try:
+        db.auth.admin.update_user_by_id(user_id, {"password": new_password})
+    except Exception as e:
+        logger.error(f"Failed to update password for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to update user password: {e}"
+        )
+
+    return {"ok": True, "id": user_id, "message": "Password updated successfully."}
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: str,
+    current_user: AuthenticatedUser = Depends(require_manager),
+):
+    """
+    Permanently delete a user account and associated data (vouches, reflections, cards, profile).
+    Prevents managers from deleting themselves or environment system managers.
+    """
+    if current_user.id == user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot delete your own account from the admin panel."
+        )
+
+    db = get_supabase_admin()
+    manager_emails = get_manager_emails()
+
+    # Prevent deleting an environment system administrator
+    target_profile_res = db.table("profiles").select("email").eq("id", user_id).maybe_single().execute()
+    if target_profile_res.data:
+        target_email = (target_profile_res.data.get("email") or "").strip().lower()
+        if target_email in manager_emails:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot delete an administrator configured in manager emails environment."
+            )
+
+    # 1. Clean up user vouches
+    try:
+        db.table("card_vouches").delete().eq("user_id", user_id).execute()
+    except Exception as e:
+        logger.warning(f"Failed deleting vouches for user {user_id}: {e}")
+
+    # 2. Clean up reflection sessions
+    try:
+        db.table("reflection_sessions").delete().eq("user_id", user_id).execute()
+    except Exception as e:
+        logger.warning(f"Failed deleting reflections for user {user_id}: {e}")
+
+    # 3. Clean up custom cards created by this user
+    try:
+        db.table("cards").delete().eq("created_by", user_id).execute()
+    except Exception as e:
+        logger.warning(f"Failed deleting cards created by user {user_id}: {e}")
+
+    # 4. Clean up profile row
+    try:
+        db.table("profiles").delete().eq("id", user_id).execute()
+    except Exception as e:
+        logger.warning(f"Failed deleting profile for user {user_id}: {e}")
+
+    # 5. Delete user from Supabase auth
+    try:
+        db.auth.admin.delete_user(user_id)
+    except Exception as e:
+        logger.error(f"Failed deleting auth user {user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to delete auth user: {e}"
+        )
+
+    return {"ok": True, "id": user_id, "message": "User account and all associated data deleted successfully."}
 
 
 # ==========================================

@@ -257,6 +257,71 @@ class AdminRoutesTestCase(unittest.TestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertIn("cannot demote an administrator configured in manager emails", response.json().get("detail", "").lower())
 
+    def test_admin_update_user_password(self):
+        """Manager can update another user's password."""
+        caller = AuthenticatedUser(id="m-1", email="admin@example.com", role="manager")
+        app.dependency_overrides[require_manager] = lambda: caller
+
+        mock_db = MagicMock()
+        mock_auth_admin = MagicMock()
+        mock_db.auth.admin = mock_auth_admin
+
+        with patch("admin.get_supabase_admin", return_value=mock_db):
+            response = self.client.post(
+                "/api/admin/users/target-user-123/password",
+                json={"password": "newSecurePassword123"},
+            )
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertTrue(data["ok"])
+            self.assertEqual(data["id"], "target-user-123")
+            mock_auth_admin.update_user_by_id.assert_called_once_with(
+                "target-user-123", {"password": "newSecurePassword123"}
+            )
+
+    def test_admin_update_user_password_too_short(self):
+        """Updating password with less than 6 characters fails with 422/400 validation error."""
+        caller = AuthenticatedUser(id="m-1", email="admin@example.com", role="manager")
+        app.dependency_overrides[require_manager] = lambda: caller
+
+        response = self.client.post(
+            "/api/admin/users/target-user-123/password",
+            json={"password": "123"},
+        )
+        self.assertIn(response.status_code, [400, 422])
+
+    def test_admin_delete_user(self):
+        """Manager can delete a user and cascade their data."""
+        caller = AuthenticatedUser(id="m-1", email="admin@example.com", role="manager")
+        app.dependency_overrides[require_manager] = lambda: caller
+
+        mock_db = MagicMock()
+        mock_table = MagicMock()
+        mock_db.table.return_value = mock_table
+        mock_table.select.return_value = mock_table
+        mock_table.delete.return_value = mock_table
+        mock_table.eq.return_value = mock_table
+        mock_table.maybe_single.return_value = mock_table
+        mock_table.execute.return_value = MagicMock(data={"email": "target@example.com"})
+
+        mock_auth_admin = MagicMock()
+        mock_db.auth.admin = mock_auth_admin
+
+        with patch("admin.get_supabase_admin", return_value=mock_db):
+            response = self.client.delete("/api/admin/users/target-user-123")
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue(response.json()["ok"])
+            mock_auth_admin.delete_user.assert_called_once_with("target-user-123")
+
+    def test_admin_delete_self_forbidden(self):
+        """Manager cannot delete their own account from the admin panel."""
+        caller = AuthenticatedUser(id="m-1", email="admin@example.com", role="manager")
+        app.dependency_overrides[require_manager] = lambda: caller
+
+        response = self.client.delete("/api/admin/users/m-1")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("cannot delete your own account", response.json().get("detail", "").lower())
+
 
 if __name__ == "__main__":
     unittest.main()

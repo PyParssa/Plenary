@@ -219,6 +219,53 @@ export async function adminUpdateUserRole(
 }
 
 /**
+ * Admin API Helper: Update user password
+ */
+export async function adminUpdateUserPassword(
+  token: string,
+  userId: string,
+  password: string
+): Promise<{ ok: boolean; id: string; message: string }> {
+  const res = await fetch(getApiUrl(`/api/admin/users/${encodeURIComponent(userId)}/password`), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ password }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || errorData.error || `Failed to update user password: ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Admin API Helper: Delete user account
+ */
+export async function adminDeleteUser(
+  token: string,
+  userId: string
+): Promise<{ ok: boolean; id: string; message: string }> {
+  const res = await fetch(getApiUrl(`/api/admin/users/${encodeURIComponent(userId)}`), {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || errorData.error || `Failed to delete user: ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
+/**
  * Admin API Helper: Fetch overview analytics
  */
 export async function adminFetchAnalytics(token: string): Promise<AnalyticsOverview> {
