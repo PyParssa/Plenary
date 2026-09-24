@@ -1,3 +1,4 @@
+import { supabase } from "../lib/supabase";
 import React, { useState, useEffect } from 'react';
 import { fetchDiscoveryConfig, adminUpdateDiscoveryConfig } from '../lib/api';
 import { Plus, Trash2, Save, X, Edit2, Compass, PenTool } from 'lucide-react';
@@ -197,9 +198,36 @@ export const AdminDiscoveryTab: React.FC<AdminDiscoveryTabProps> = ({ token, onS
 
 const AuthorEditor = ({ author, onSave, onCancel }: any) => {
   const [form, setForm] = useState({ ...author });
+  const [uploading, setUploading] = useState(false);
 
   const handleChange = (e: any) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!e.target.files || e.target.files.length === 0) return;
+      const file = e.target.files[0];
+      setUploading(true);
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      
+      setForm({ ...form, avatarUrl: data.publicUrl });
+    } catch (error: any) {
+      alert('Error uploading image: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -218,8 +246,19 @@ const AuthorEditor = ({ author, onSave, onCancel }: any) => {
             <input name="name" value={form.name} onChange={handleChange} className="w-full border rounded-lg p-2" />
           </div>
           <div>
-            <label className="block text-xs font-semibold mb-1">Avatar URL</label>
-            <input name="avatarUrl" value={form.avatarUrl} onChange={handleChange} className="w-full border rounded-lg p-2" />
+            <label className="block text-xs font-semibold mb-1">Avatar Image</label>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                {form.avatarUrl && (
+                  <img src={form.avatarUrl} alt="Avatar Preview" className="w-10 h-10 rounded-full object-cover border border-[#e5e5e5]" />
+                )}
+                <label className="cursor-pointer bg-[#fca311] hover:bg-[#e5940e] text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
+                  {uploading ? 'Uploading...' : 'Upload Image'}
+                  <input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} className="hidden" />
+                </label>
+              </div>
+              <input name="avatarUrl" value={form.avatarUrl} onChange={handleChange} placeholder="Or paste image URL" className="w-full border rounded-lg p-2" />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-semibold mb-1">Filter Key</label>
