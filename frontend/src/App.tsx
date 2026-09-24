@@ -345,11 +345,10 @@ export default function App() {
   }, []);
 
   // Fetch public cards with real community vouch counts from Supabase
-  useEffect(() => {
-    let active = true;
+  const handleRefreshCards = useCallback(() => {
     fetchCards()
       .then((remoteCards) => {
-        if (!active || remoteCards.length === 0) return;
+        if (remoteCards.length === 0) return;
         setCards((current) => {
           const currentVouched = new Map<string, { vouched: boolean; vouchedAt?: number }>(
             current.map((c) => [c.id, { vouched: c.vouched, vouchedAt: c.vouchedAt }])
@@ -367,10 +366,11 @@ export default function App() {
       .catch((error) => {
         console.warn('Could not fetch public cards from Supabase:', error);
       });
-    return () => {
-      active = false;
-    };
   }, []);
+
+  useEffect(() => {
+    handleRefreshCards();
+  }, [handleRefreshCards]);
 
   const handleJourneyComplete = (selectedIds: string[]) => {
     localStorage.setItem('plenary_journey', JSON.stringify(selectedIds));
@@ -498,7 +498,8 @@ export default function App() {
     setActiveTab('deck');
   };
 
-  const vouchedCards = cards.filter((c) => c.vouched);
+  const visibleCards = cards.filter((c) => c.published !== false);
+  const vouchedCards = visibleCards.filter((c) => c.vouched);
   const isManager = isManagerUser(guestProfile?.email, guestProfile?.role);
 
   return (
@@ -515,7 +516,7 @@ export default function App() {
         onOpenAccount={handleOpenAccount}
         onLogout={handleLogout}
         onReplayTour={handleReplayTour}
-        vouchedCount={cards.filter((c) => c.vouched).length}
+        vouchedCount={vouchedCards.length}
         reflectionsCount={Object.keys(reflectionSessions).length}
         isNightMode={isNightMode}
         onToggleNightMode={() => setIsNightMode(!isNightMode)}
@@ -537,7 +538,7 @@ export default function App() {
               className="w-full flex-1 flex flex-col items-center justify-center"
             >
               <DeckView
-                cards={cards}
+                cards={visibleCards}
                 onVouchCard={(cardId) => requireAccount(() => handleVouchCard(cardId))}
                 onUnvouchCard={(cardId) => requireAccount(() => handleUnvouchCard(cardId))}
                 onOpenReflection={handleOpenReflection}
@@ -583,7 +584,7 @@ export default function App() {
             >
               <DiscoveryView
                 authors={authors}
-                cards={cards}
+                cards={visibleCards}
                 canCreateCards={isManager || guestProfile?.role === 'creator'}
                 onAddCustomCard={(newCardData) => requireAccount(() => handleAddCustomCard(newCardData))}
                 onSelectAuthorFilter={handleSelectDiscoveryAuthor}
@@ -626,6 +627,7 @@ export default function App() {
                   token={sessionToken}
                   currentUserId={userId ?? undefined}
                   onShowToast={showToast}
+                  onCardsModified={handleRefreshCards}
                 />
               ) : (
                 <div className="text-center py-20 text-[#14213d]/60">

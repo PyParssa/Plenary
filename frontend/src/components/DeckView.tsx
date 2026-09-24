@@ -35,8 +35,10 @@ export const DeckView: React.FC<DeckViewProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
 
+  const visibleCards = cards.filter((c) => c.published !== false);
+
   // Fallback if cards array is empty
-  if (cards.length === 0) {
+  if (visibleCards.length === 0) {
     return (
       <EmptyState
         testId="empty-deck-state"
@@ -47,19 +49,19 @@ export const DeckView: React.FC<DeckViewProps> = ({
     );
   }
 
-  const activeIndex = currentIndex % cards.length;
-  const currentCard = cards[activeIndex];
-  const nextCard = cards[(activeIndex + 1) % cards.length];
+  const activeIndex = currentIndex % visibleCards.length;
+  const currentCard = visibleCards[activeIndex];
+  const nextCard = visibleCards[(activeIndex + 1) % visibleCards.length];
 
   const handleNext = () => {
     setSwipeDirection('right');
-    setCurrentIndex((prev) => (prev + 1) % cards.length);
+    setCurrentIndex((prev) => (prev + 1) % visibleCards.length);
     window.setTimeout(() => setSwipeDirection(null), 120);
   };
 
   const handlePrev = () => {
     setSwipeDirection('left');
-    setCurrentIndex((prev) => (prev - 1 + cards.length) % cards.length);
+    setCurrentIndex((prev) => (prev - 1 + visibleCards.length) % visibleCards.length);
     window.setTimeout(() => setSwipeDirection(null), 120);
   };
 
@@ -70,7 +72,7 @@ export const DeckView: React.FC<DeckViewProps> = ({
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1 font-mono text-[11px] font-semibold text-[#14213d]">
             <Flame className="w-3.5 h-3.5 text-[#fca311]" />
-            Card {activeIndex + 1} of {cards.length}
+            Card {activeIndex + 1} of {visibleCards.length}
           </span>
           <span className="text-[#e5e5e5]">•</span>
           <span className="text-[11px]">{currentCard.category}</span>

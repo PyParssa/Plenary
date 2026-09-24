@@ -48,6 +48,7 @@ interface AdminViewProps {
   token: string;
   currentUserId?: string;
   onShowToast: (msg: string) => void;
+  onCardsModified?: () => void;
 }
 
 const LIFE_STAGES: LifeStage[] = [
@@ -65,6 +66,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   token,
   currentUserId,
   onShowToast,
+  onCardsModified,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'cards' | 'users' | 'analytics'>('cards');
 
@@ -276,6 +278,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       setIsEditModalOpen(false);
       setEditingCard(null);
       loadCards();
+      onCardsModified?.();
     } catch (err: any) {
       onShowToast(err.message || 'Failed to update card');
     }
@@ -289,6 +292,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         prev.map((c) => (c.id === card.id ? { ...c, published: nextPublished } : c))
       );
       onShowToast(nextPublished ? 'Card published' : 'Card unpublished');
+      onCardsModified?.();
     } catch (err: any) {
       onShowToast(err.message || 'Failed to toggle card visibility');
     }
@@ -306,6 +310,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         return next;
       });
       loadCards();
+      onCardsModified?.();
     } catch (err: any) {
       onShowToast(err.message || 'Failed to delete card');
     }
@@ -321,6 +326,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       onShowToast(`${ids.length} card(s) ${publishedState ? 'published' : 'unpublished'}`);
       setSelectedCardIds(new Set());
       loadCards();
+      onCardsModified?.();
     } catch (err: any) {
       onShowToast(err.message || 'Failed bulk update');
     }
@@ -337,6 +343,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       onShowToast(`${ids.length} card(s) deleted`);
       setSelectedCardIds(new Set());
       loadCards();
+      onCardsModified?.();
     } catch (err: any) {
       onShowToast(err.message || 'Failed bulk delete');
     }
@@ -478,6 +485,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       setImportPreviewCards([]);
       setImportErrors([]);
       loadCards();
+      onCardsModified?.();
     } catch (err: any) {
       onShowToast(err.message || 'Import failed');
     } finally {

@@ -23,6 +23,7 @@ export interface QuestionCard {
   vouched: boolean;
   vouchedAt?: number;
   vouchCount: number;
+  published?: boolean;
 }
 
 export interface AuthorProfile {

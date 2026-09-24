@@ -4,7 +4,7 @@ import { GuestProfile, QuestionCard, ReflectionSession, UserRole } from '../type
 export async function fetchCards(): Promise<QuestionCard[]> {
   let { data, error } = await supabase
     .from('cards')
-    .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count');
+    .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count, published');
 
   if (error) {
     const fallback = await supabase
@@ -17,19 +17,22 @@ export async function fetchCards(): Promise<QuestionCard[]> {
   }
 
   if (error) throw error;
-  return (data ?? []).map((card: any) => ({
-    id: card.id,
-    category: card.category,
-    author: card.author,
-    authorAvatar: card.author_avatar,
-    authorBio: card.author_bio ?? undefined,
-    book: card.book,
-    question: card.question,
-    backstory: card.backstory,
-    relatedInquiries: (card.related_inquiries ?? []) as string[],
-    vouched: false,
-    vouchCount: Number(card.vouch_count ?? 0),
-  }));
+  return (data ?? [])
+    .filter((card: any) => card.published !== false)
+    .map((card: any) => ({
+      id: card.id,
+      category: card.category,
+      author: card.author,
+      authorAvatar: card.author_avatar,
+      authorBio: card.author_bio ?? undefined,
+      book: card.book,
+      question: card.question,
+      backstory: card.backstory,
+      relatedInquiries: (card.related_inquiries ?? []) as string[],
+      vouched: false,
+      vouchCount: Number(card.vouch_count ?? 0),
+      published: card.published !== false,
+    }));
 }
 
 export async function loadUserData(userId: string): Promise<{
@@ -42,7 +45,7 @@ export async function loadUserData(userId: string): Promise<{
     supabase.from('profiles').select('email, display_name, created_at, selected_atmospheres, role').eq('id', userId).maybeSingle(),
     supabase.from('card_vouches').select('card_id').eq('user_id', userId),
     supabase.from('reflection_sessions').select('card_id, session').eq('user_id', userId),
-    supabase.from('cards').select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count'),
+    supabase.from('cards').select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count, published'),
   ]);
 
   let profileData = profileResult.data;
@@ -88,19 +91,22 @@ export async function loadUserData(userId: string): Promise<{
     reflections: Object.fromEntries(
       (reflectionsResult.data ?? []).map((row) => [row.card_id, row.session as ReflectionSession]),
     ),
-    cards: (cardRows ?? []).map((card: any) => ({
-      id: card.id,
-      category: card.category,
-      author: card.author,
-      authorAvatar: card.author_avatar,
-      authorBio: card.author_bio ?? undefined,
-      book: card.book,
-      question: card.question,
-      backstory: card.backstory,
-      relatedInquiries: (card.related_inquiries ?? []) as string[],
-      vouched: false,
-      vouchCount: Number(card.vouch_count ?? 0),
-    })),
+    cards: (cardRows ?? [])
+      .filter((card: any) => card.published !== false)
+      .map((card: any) => ({
+        id: card.id,
+        category: card.category,
+        author: card.author,
+        authorAvatar: card.author_avatar,
+        authorBio: card.author_bio ?? undefined,
+        book: card.book,
+        question: card.question,
+        backstory: card.backstory,
+        relatedInquiries: (card.related_inquiries ?? []) as string[],
+        vouched: false,
+        vouchCount: Number(card.vouch_count ?? 0),
+        published: card.published !== false,
+      })),
   };
 }
 
