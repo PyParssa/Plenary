@@ -1,4 +1,4 @@
-const CACHE_NAME = 'plenary-v3';
+const CACHE_NAME = 'plenary-v4';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
@@ -6,7 +6,6 @@ const PRECACHE_ASSETS = [
   '/favicon.ico',
   '/favicon.svg',
   '/apple-touch-icon.png',
-  '/og-image.png',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
   '/icons/icon-maskable-192x192.png',
@@ -17,10 +16,10 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Use Promise.allSettled so individual optional asset failures never block SW installation
+      // Use Promise.allSettled so individual asset failures never block SW installation
       return Promise.allSettled(
         PRECACHE_ASSETS.map((url) =>
-          fetch(url, { cache: 'no-cache' })
+          fetch(url)
             .then((response) => {
               if (response && response.ok) {
                 return cache.put(url, response);
@@ -58,21 +57,40 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(
-    fetch(event.request)
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const clone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return networkResponse;
-      })
-      .catch(async () => {
-        const cached = await caches.match(event.request);
+  // Cache-first for static assets (JS, CSS, images, fonts, icons)
+  const isStatic = /\.(js|css|png|jpg|jpeg|svg|ico|webp|woff2?|ttf|eot)(\?|$)/.test(url.pathname);
+
+  if (isStatic) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
         if (cached) return cached;
-        if (event.request.mode === 'navigate') {
-          return (await caches.match('/index.html')) || (await caches.match('/'));
-        }
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        });
       })
-  );
+    );
+  } else {
+    // Network-first for navigation / HTML documents
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          if (event.request.mode === 'navigate') {
+            return (await caches.match('/index.html')) || (await caches.match('/'));
+          }
+        })
+    );
+  }
 });

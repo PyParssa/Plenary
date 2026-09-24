@@ -11,6 +11,18 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom'],
+            'vendor-supabase': ['@supabase/supabase-js'],
+            'vendor-motion': ['motion'],
+            'vendor-ui': ['lucide-react', 'driver.js'],
+          },
+        },
+      },
+    },
     server: {
       port: 5173,
       proxy: {

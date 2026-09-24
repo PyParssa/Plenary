@@ -1,283 +1,207 @@
-# Action Plan: Discovery — Author Persona Cards & Category Cards → Custom Deck
+# Action Plan: Fix PWA Install Timeout on Mobile
 
-## Overview
+## Root Cause Diagnosis
 
-Replace the current "Creator & Publisher Board" author profile grid in the Discovery tab with two engaging card-based sections:
+The PWA install flow on mobile is timing out due to **multiple compounding issues**:
 
-1. **Author Persona Cards** — e.g. "What would Steve Jobs ask you?", "What would Naval ask you?" — each card carries a signature voice/question teaser for that thinker.
-2. **Category Cards** — thematic life-context cards like "Career Change", "Life Decision", "Relationships", "Mortality & Meaning", etc.
+### 🔴 Critical: Monolithic 744 KB JS Bundle
+- `assets/index-PHAPkTdz.js` is **744 KB** (uncompressed). On a mobile connection this can easily take 10–30 seconds.
+- There is **no code-splitting** configured in `vite.config.ts` — the entire app ships as one chunk.
+- The browser must download, parse, and execute this entire bundle before it can trigger the PWA install prompt.
 
-When a user clicks any card (author or category), they are taken to a **custom filtered deck** view — NOT the main shuffled deck. The filtered deck shows only cards belonging to that author or category, with a back button to return to Discovery.
+### 🔴 Critical: Service Worker Fetch Strategy Blocks Install
+- The `sw.js` `fetch` handler uses **network-first** for *every* request.
+- During install, the browser must successfully complete all precache fetches. If the network is slow, the SW install event can time out (browsers enforce ~5 min, but mobile often kills it sooner).
+- The precache loop uses `fetch(url, { cache: 'no-cache' })` which bypasses the HTTP cache — every asset is re-downloaded fresh even if already cached by the browser.
 
----
+### 🟡 High: 682 KB Unoptimized Logo Image
+- `assets/logo.png` is **682 KB** — nearly as large as the JS bundle.
+- This is likely loaded eagerly and contributes heavily to initial load time.
 
-## Current State Analysis
+### 🟡 High: 61 KB SVG Favicon
+- `favicon.svg` is **61 KB** — excessively large for an icon.
 
-### Key Files
-| File | Role |
-|------|------|
-| `frontend/src/components/DiscoveryView.tsx` | The Discovery tab UI — currently shows author bios + "View Cards" / "Contribute Card" buttons |
-| `frontend/src/App.tsx` | Root state — manages `activeTab`, `cards`, `selectedLifeStage`; handlers `handleSelectDiscoveryAuthor` / `handleSelectDiscoveryCategory` switch to `deck` tab but don't carry filter state into the deck |
-| `frontend/src/components/DeckView.tsx` | Card-swipe deck — receives a `cards[]` array and renders them; has no built-in filtering UI |
-| `frontend/src/types.ts` | Defines `LifeStage`, `QuestionCard`, `AuthorProfile`, `ActiveTab` |
-| `frontend/src/data/initialData.ts` | `INITIAL_AUTHORS` (6 classical authors) + `INITIAL_QUESTIONS` (8 seed cards) |
+### 🟡 Medium: Screenshots Missing
+- `frontend/dist/screenshots/` is an **empty directory**.
+- Chrome/mobile browsers require at least one screenshot to show the "Install App" prompt (rich install UI). Missing screenshots can prevent the install banner from appearing at all.
 
-### Current Problems
-- Clicking "View Cards" in Discovery calls `handleSelectDiscoveryAuthor(name)` → resets `selectedLifeStage` to `'All Inquiries'` and navigates to main deck — **no filter is actually applied**
-- Same for category buttons — `handleSelectDiscoveryCategory` resets to `'All Inquiries'`
-- The author cards show bios & books published — feels like a directory, not an engaging "what would X ask you?" hook
-- No modern author/thinker personas (Steve Jobs, Naval, etc.)
-
----
-
-## Plan
-
-### Step 1 — Add New Author Personas & Category Definitions
-
-**File:** `frontend/src/data/discoveryData.ts` (new file)
-
-Create a dedicated data file with two typed arrays:
-
-#### 1a. `DiscoveryAuthorCard` interface + `DISCOVERY_AUTHORS` array
-
-Each persona has:
-- `id`, `name`, `avatarUrl`
-- `tagline` — "What would Naval ask you?"
-- `signatureQuestion` — teaser question shown on card face
-- `description` — one-liner about this thinker's lens
-- `filterKey` — the author name string to match against `QuestionCard.author`
-- `accentColor` — subtle background hex for the card
-
-Authors to include:
-| Name | Lens | filterKey |
-|------|------|-----------|
-| Steve Jobs | Design, craft, mortality | `"Steve Jobs"` |
-| Naval Ravikant | Wealth, happiness, leverage | `"Naval Ravikant"` |
-| Viktor Frankl | Meaning, suffering | `"Viktor Frankl"` |
-| Marcus Aurelius | Stoic duty, impermanence | `"Marcus Aurelius"` |
-| Paul Graham | Startups, taste, honesty | `"Paul Graham"` |
-| Seneca | Time scarcity, tranquility | `"Seneca"` |
-| Mary Oliver | Attention, wildness, presence | `"Mary Oliver"` |
-
-#### 1b. `DiscoveryCategoryCard` interface + `DISCOVERY_CATEGORIES` array
-
-Each category has:
-- `id`, `label`, `emoji`, `tagline`, `description`
-- `filterKey: LifeStage` — maps directly to existing `QuestionCard.category` values
-- `accentColor`
-
-Categories to include:
-| Label | Emoji | filterKey (LifeStage) |
-|-------|-------|-----------------------|
-| Career Change | 🧭 | `'Career Reinvention'` |
-| Life Decision | ⚖️ | `'Existential Inquiry'` |
-| Relationships | 🤝 | `'Deep Relationships'` |
-| Who Am I? | 🪞 | `'Solitude & Identity'` |
-| Creative Life | 🎨 | `'Creativity & Craft'` |
-| Midlife Reckoning | 🌅 | `'Midlife Reckoning'` |
-| Mortality & Meaning | 🕯️ | `'Mortality & Meaning'` |
+### 🟡 Medium: `og-image.png` in Precache
+- `og-image.png` (62 KB) is in `PRECACHE_ASSETS` but serves no purpose for offline functionality — it's only needed for social sharing previews.
 
 ---
 
-### Step 2 — Add Seed Cards for New Author Personas
+## Fix Plan (Ordered by Impact)
 
-**File:** `frontend/src/data/initialData.ts` (edit)
+### Step 1 — Code-Split the JS Bundle
+**File:** `frontend/vite.config.ts`
 
-Add 2–3 `QuestionCard` entries per new author so clicking their Discovery card shows a populated deck immediately.
+Add `build.rollupOptions.output.manualChunks` to split vendor libraries:
 
-**Steve Jobs cards:**
-- Category: `'Career Reinvention'` and `'Creativity & Craft'`
-- Sources: Stanford Commencement 2005, Isaacson biography
-- Example question: *"If today were the last day of your life, would you want to do what you're about to do today?"*
-
-**Naval Ravikant cards:**
-- Category: `'Existential Inquiry'` and `'Solitude & Identity'`
-- Source: *The Almanack of Naval Ravikant*
-- Example question: *"Are you working on something that compounds, or just keeping busy?"*
-
-**Paul Graham cards:**
-- Category: `'Career Reinvention'` and `'Creativity & Craft'`
-- Source: Essays (paulgraham.com)
-- Example question: *"What problem are you working on that most people think is too small or too weird to matter?"*
-
-> [!CAUTION]
-> After adding these cards, bump `plenary_data_version` in `App.tsx` from `'4'` to `'5'` **only if** you want returning users to receive the refreshed seed data (this clears their local card cache). If you want to preserve existing user data, skip the version bump — new cards will only appear for first-time users.
-
----
-
-### Step 3 — Add `discoveryFilter` State to App.tsx
-
-**File:** `frontend/src/App.tsx` (edit)
-
-#### 3a. Add state
 ```ts
-const [discoveryFilter, setDiscoveryFilter] = useState<
-  | { type: 'author'; key: string; label: string }
-  | { type: 'category'; key: LifeStage; label: string }
-  | null
->(null);
+build: {
+  rollupOptions: {
+    output: {
+      manualChunks: {
+        'vendor-react': ['react', 'react-dom'],
+        'vendor-supabase': ['@supabase/supabase-js'],
+        'vendor-motion': ['motion'],
+        'vendor-ui': ['lucide-react', 'driver.js'],
+      },
+    },
+  },
+},
 ```
 
-#### 3b. Replace both handler functions
-```ts
-// Replace handleSelectDiscoveryAuthor
-const handleSelectDiscoveryAuthor = (authorKey: string, label: string) => {
-  setDiscoveryFilter({ type: 'author', key: authorKey, label });
-  setActiveTab('deck');
-};
-
-// Replace handleSelectDiscoveryCategory
-const handleSelectDiscoveryCategory = (categoryKey: LifeStage, label: string) => {
-  setDiscoveryFilter({ type: 'category', key: categoryKey, label });
-  setActiveTab('deck');
-};
-
-// Add clear handler
-const handleClearDiscoveryFilter = () => {
-  setDiscoveryFilter(null);
-};
-```
-
-#### 3c. Clear filter on tab change
-In `handleTabChange`, call `setDiscoveryFilter(null)` when switching away from `'deck'`.
-
-#### 3d. Pass props to DeckView and DiscoveryView
-- DeckView: add `discoveryFilter={discoveryFilter}` and `onClearDiscoveryFilter={handleClearDiscoveryFilter}`
-- DiscoveryView: remove `authors={authors}` prop; update `onSelectAuthorFilter` and `onSelectCategory` to new 2-arg signatures
+**Expected result:** Bundle splits into 4–5 smaller chunks (~100–200 KB each), enabling parallel downloads and faster first-paint. Target: main entry chunk < 200 KB.
 
 ---
 
-### Step 4 — Update DeckView.tsx for Filtered Mode
+### Step 2 — Fix Service Worker Caching Strategy
+**File:** `frontend/public/sw.js`
 
-**File:** `frontend/src/components/DeckView.tsx` (edit)
-
-#### 4a. Update props interface
-```ts
-interface DeckViewProps {
-  // existing props...
-  discoveryFilter?: { type: 'author' | 'category'; key: string; label: string } | null;
-  onClearDiscoveryFilter?: () => void;
-}
+**2a. Remove `og-image.png` from precache** — it's not needed offline:
+```js
+const PRECACHE_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/favicon.ico',
+  '/favicon.svg',
+  '/apple-touch-icon.png',
+  // Removed: '/og-image.png'
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+  '/icons/icon-maskable-192x192.png',
+  '/icons/icon-maskable-512x512.png',
+];
 ```
 
-#### 4b. Compute filtered cards at component top
-```ts
-const visibleCards = (() => {
-  const published = cards.filter((c) => c.published !== false);
-  if (!discoveryFilter) return published;
-  if (discoveryFilter.type === 'author') {
-    const key = discoveryFilter.key.toLowerCase();
-    return published.filter((c) => c.author.toLowerCase().includes(key));
+**2b. Remove `cache: 'no-cache'` from precache fetches** so the browser HTTP cache is used when available:
+```js
+fetch(url)  // was: fetch(url, { cache: 'no-cache' })
+```
+
+**2c. Switch fetch handler to cache-first for static assets:**
+```js
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (!url.protocol.startsWith('http') || url.pathname.startsWith('/api') || url.pathname.startsWith('/auth')) return;
+
+  // Cache-first for static assets (JS, CSS, images, fonts)
+  const isStatic = /\.(js|css|png|jpg|jpeg|svg|ico|woff2?)(\?|$)/.test(url.pathname);
+
+  if (isStatic) {
+    event.respondWith(
+      caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
+        if (res && res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+        }
+        return res;
+      }))
+    );
+  } else {
+    // Network-first for navigation/HTML
+    event.respondWith(
+      fetch(event.request).then(res => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+        }
+        return res;
+      }).catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.mode === 'navigate') {
+          return (await caches.match('/index.html')) || (await caches.match('/'));
+        }
+      })
+    );
   }
-  if (discoveryFilter.type === 'category') {
-    return published.filter((c) => c.category === discoveryFilter.key);
-  }
-  return published;
-})();
+});
 ```
-
-#### 4c. Add filter banner UI (rendered when `discoveryFilter` is set)
-- Shows: `Showing N cards for "Steve Jobs"` + `[× Clear Filter]` button
-- Positioned above the card stack
-- Clicking Clear calls `onClearDiscoveryFilter()`
-
-#### 4d. Update empty state
-When filtered deck is empty, show: *"No cards found for '[label]'. Explore Discovery to find more voices."* with a "Back to Discovery" button that calls `onClearDiscoveryFilter()` then navigates to discovery tab.
 
 ---
 
-### Step 5 — Rewrite DiscoveryView.tsx
+### Step 3 — Optimize Images
+**Files:** `frontend/public/` and `frontend/dist/assets/`
 
-**File:** `frontend/src/components/DiscoveryView.tsx` (rewrite)
+**3a. Compress `logo.png` (682 KB → target < 100 KB):**
+```bash
+npx @squoosh/cli --webp '{"quality":80}' frontend/src/assets/logo.png
+# Or with imagemagick:
+convert logo.png -quality 80 -resize 800x800\> logo.webp
+```
 
-#### 5a. Update props interface
+**3b. Compress `favicon.svg` (61 KB → target < 5 KB):**
+```bash
+npx svgo frontend/public/favicon.svg -o frontend/public/favicon.svg
+```
+
+**3c. Compress `apple-touch-icon.png` (40 KB → target < 15 KB):**
+```bash
+npx @squoosh/cli --oxipng '{}' frontend/public/apple-touch-icon.png
+```
+
+**3d. Update logo imports** in source to use the WebP version if converted.
+
+---
+
+### Step 4 — Add PWA Screenshots
+**Files to create:** `frontend/public/screenshots/`
+
+The `manifest.json` references `screenshot-mobile.png` and `screenshot-desktop.png` but the directory is **empty**. Mobile Chrome **requires screenshots** for the enhanced install UI:
+
+```
+frontend/public/screenshots/screenshot-mobile.png   # 750×1334 px
+frontend/public/screenshots/screenshot-desktop.png  # 1280×720 px
+```
+
+Without these, the install banner may silently fail to appear on Chrome for Android.
+
+---
+
+### Step 5 — Add Gzip/Brotli Pre-compression (if self-hosting)
+**File:** `frontend/vite.config.ts`
+
+> Skip this step if hosting on **Vercel** — it handles compression automatically.
+
+```bash
+npm install -D vite-plugin-compression
+```
+
 ```ts
-interface DiscoveryViewProps {
-  cards: QuestionCard[];
-  canCreateCards: boolean;
-  onAddCustomCard: (newCard: Omit<QuestionCard, 'id' | 'vouched' | 'vouchCount'>) => void;
-  onSelectAuthorFilter: (authorKey: string, label: string) => void;
-  onSelectCategory: (categoryKey: LifeStage, label: string) => void;
-}
-```
-Drop `authors: AuthorProfile[]` — author data comes from `DISCOVERY_AUTHORS` in `discoveryData.ts`.
-
-#### 5b. Page layout structure
-```
-Discovery Page
-├── Header ("Discovery" title + "Craft Card" button for creators)
-│
-├── Section A: "Voices" — Author Persona Cards
-│   ├── Eyebrow: "What would they ask you?"
-│   └── Horizontal scroll on mobile / 3-col grid on desktop
-│       └── AuthorPersonaCard × N
-│
-└── Section B: "Explore by Theme" — Category Cards
-    ├── Eyebrow: "Choose your terrain"
-    └── 2–3 column grid
-        └── CategoryCard × N
-```
-
-#### 5c. AuthorPersonaCard UI (per card)
-- Background: `author.accentColor`
-- Avatar: `64px` circle with `onError` fallback to `/assets/default-avatar.svg`
-- Eyebrow text: `author.tagline` in `text-[11px] uppercase tracking-widest`
-- Signature question: `font-serif-clean italic text-base line-clamp-2`
-- Description: `text-[11px] text-[#14213d]/60`
-- Footer: card count badge (left) + "Enter Deck →" button (right)
-- Full card is clickable → `onSelectAuthorFilter(author.filterKey, author.name)`
-
-**Card count:** computed as `cards.filter(c => c.author.toLowerCase().includes(author.filterKey.toLowerCase())).length`
-
-#### 5d. CategoryCard UI (per card)
-- Background: `cat.accentColor`
-- Large emoji (`text-3xl`)
-- Label: `text-sm font-bold`
-- Tagline: `text-[11px] font-semibold text-[#14213d]/60`
-- Description: `text-[10px] text-[#14213d]/50 line-clamp-2`
-- Full card clickable → `onSelectCategory(cat.filterKey, cat.label)`
-- Hover: subtle shadow + border darkening
-
-#### 5e. Keep "Craft an Illuminating Card" modal
-Preserve the entire existing modal form code unchanged. Only the trigger button moves to the page header area.
-
----
-
-## Files Changed Summary
-
-| Action | File | Description |
-|--------|------|-------------|
-| **Create** | `frontend/src/data/discoveryData.ts` | `DISCOVERY_AUTHORS` + `DISCOVERY_CATEGORIES` typed arrays |
-| **Edit** | `frontend/src/data/initialData.ts` | Add Steve Jobs, Naval, Paul Graham seed cards; optionally bump data version |
-| **Edit** | `frontend/src/App.tsx` | Add `discoveryFilter` state; update handler signatures; pass new props to DeckView/DiscoveryView; clear filter on tab switch |
-| **Edit** | `frontend/src/components/DeckView.tsx` | Add filter props; compute filtered cards; add filter banner; update empty state |
-| **Rewrite** | `frontend/src/components/DiscoveryView.tsx` | Author persona cards section + category cards grid; updated props; keep Craft modal |
-
----
-
-## Implementation Order
-
-```
-1. discoveryData.ts          — pure data, no deps
-2. initialData.ts            — add seed cards
-3. App.tsx state + handlers  — wire up filter state
-4. DeckView.tsx              — add filter support
-5. DiscoveryView.tsx         — full UI rewrite
-6. App.tsx props             — connect everything
+import compression from 'vite-plugin-compression';
+plugins: [react(), tailwindcss(), compression({ algorithm: 'brotliCompress' })],
 ```
 
 ---
 
-## Key Design Decisions
+### Step 6 — Bump Service Worker Cache Version
+**File:** `frontend/public/sw.js`
 
-> [!IMPORTANT]
-> The filtered deck is NOT a new tab or route — it reuses the existing `deck` tab with a `discoveryFilter` prop overlay. No routing changes required; architecture stays flat.
+After all changes, bump the cache name so the old broken SW gets replaced on next visit:
+```js
+const CACHE_NAME = 'plenary-v4';
+```
 
-> [!NOTE]
-> Author card filtering uses `c.author.toLowerCase().includes(key.toLowerCase())` — the same fuzzy match logic from `isAuthorMatch()` in the current DiscoveryView can be extracted to `frontend/src/lib/utils.ts` and shared between DeckView and DiscoveryView.
+---
 
-> [!TIP]
-> Author persona cards on mobile: use `flex overflow-x-auto snap-x snap-mandatory gap-4 pb-2` so the row is horizontally swipeable. On desktop (`md:`): switch to `grid grid-cols-3 gap-5`.
+## Summary Table
 
-> [!TIP]
-> Avatar images for Steve Jobs, Naval, Paul Graham — use Wikipedia Commons / reliable CDN URLs, or Unsplash placeholder silhouettes until sourced. Always add `onError` fallback to `/assets/default-avatar.svg`.
+| Issue | Severity | Fix | Effort |
+|---|---|---|---|
+| 744 KB monolithic JS bundle | 🔴 Critical | Code-split in vite.config.ts | Low |
+| SW network-first for all assets | 🔴 Critical | Cache-first for static assets | Low |
+| SW precache uses `cache: 'no-cache'` | 🔴 Critical | Remove the option | Trivial |
+| 682 KB logo.png | 🟡 High | Compress / convert to WebP | Low |
+| 61 KB favicon.svg | 🟡 High | Run svgo | Trivial |
+| Missing PWA screenshots | 🟡 High | Take screenshots, add to /public | Medium |
+| og-image.png in precache | 🟡 Medium | Remove from PRECACHE_ASSETS | Trivial |
+
+## Expected Outcome
+
+After Steps 1–3: Initial load on mobile drops from ~30s → ~3–5s. Service worker installs without timeout. PWA install prompt reliably appears.
+
+After Steps 4–6: Enhanced install UI, better offline experience, cache hits on repeat visits.
