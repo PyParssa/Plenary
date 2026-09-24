@@ -690,24 +690,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
             {/* Import / Export Controls */}
             <div className="flex items-center gap-2 self-end lg:self-auto">
-              <button
-                type="button"
-                onClick={() => setIsImportModalOpen(true)}
-                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-white border border-[#14213d]/20 text-[#14213d] hover:bg-[#14213d]/5 flex items-center gap-1.5 transition-colors"
-              >
-                <Upload className="w-3.5 h-3.5 text-[#fca311]" />
-                Import Cards
-              </button>
-
               <div className="relative group">
                 <button
                   type="button"
-                  className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#14213d] text-white hover:bg-black flex items-center gap-1.5 transition-colors"
+                  className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-white border border-[#14213d]/20 text-[#14213d] hover:bg-[#14213d]/5 flex items-center gap-1.5 transition-colors"
                 >
                   <Download className="w-3.5 h-3.5 text-[#fca311]" />
                   Export
                 </button>
-                <div className="absolute right-0 mt-1 w-36 bg-white border border-[#e5e5e5] rounded-xl shadow-lg p-1.5 hidden group-hover:block z-20 animate-in fade-in duration-100">
+                <div className="absolute right-0 lg:left-0 mt-1 w-36 bg-white border border-[#e5e5e5] rounded-xl shadow-lg p-1.5 hidden group-hover:block z-20 animate-in fade-in duration-100">
                   <button
                     type="button"
                     onClick={() => handleExport('json')}
@@ -724,6 +715,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </button>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(true)}
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#14213d] text-white hover:bg-black flex items-center gap-1.5 transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5 text-[#fca311]" />
+                Import Cards
+              </button>
             </div>
           </div>
 
