@@ -236,11 +236,24 @@ async def account_bootstrap(authorization: Optional[str] = Header(None)):
     try:
         admin_client.table("profiles").upsert(upsert_data).execute()
     except Exception as e:
-        logger.error(f"Profiles upsert error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        )
+        logger.warning(f"Profiles upsert with full data failed: {e}. Retrying without role column.")
+        try:
+            upsert_data.pop("role", None)
+            admin_client.table("profiles").upsert(upsert_data).execute()
+        except Exception as e2:
+            logger.warning(f"Profiles upsert without role failed: {e2}. Retrying with minimal fields.")
+            try:
+                admin_client.table("profiles").upsert({
+                    "id": str(user.id),
+                    "email": user.email,
+                    "display_name": display_name,
+                }).execute()
+            except Exception as e3:
+                logger.error(f"Profiles minimal upsert failed: {e3}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=str(e3),
+                )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

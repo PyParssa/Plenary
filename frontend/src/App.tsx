@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ActiveTab, GuestProfile, LifeStage, LlmSettings, QuestionCard, ReflectionSession, UserRole } from './types';
 import { INITIAL_QUESTIONS, INITIAL_AUTHORS } from './data/initialData';
 import { rankQuestions } from './data/journey';
@@ -179,12 +179,12 @@ export default function App() {
     if (guestProfile) localStorage.setItem('plenary_profile', JSON.stringify(guestProfile));
   }, [guestProfile]);
 
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage(null);
     }, 2800);
-  };
+  }, []);
 
   // Vouch card interaction
   const handleVouchCard = (cardId: string) => {

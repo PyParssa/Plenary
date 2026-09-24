@@ -329,25 +329,39 @@ async def list_users(
     """List registered users with activity stats (vouches, reflections, cards created)."""
     db = get_supabase_admin()
     
-    query = db.table("profiles").select("id, email, display_name, role, created_at, updated_at", count="exact")
-
-    if role:
-        query = query.eq("role", role)
-    if search:
-        s = search.strip()
-        query = query.or_(f"email.ilike.%{s}%,display_name.ilike.%{s}%")
-
     descending = sort_order.lower() == "desc"
     allowed_sorts = {"created_at", "email", "role"}
     sort_column = sort_by if sort_by in allowed_sorts else "created_at"
-    query = query.order(sort_column, desc=descending)
 
-    offset = (page - 1) * per_page
-    query = query.range(offset, offset + per_page - 1)
+    res = None
+    try:
+        query = db.table("profiles").select("id, email, display_name, role, created_at, updated_at", count="exact")
+        if role:
+            query = query.eq("role", role)
+        if search:
+            s = search.strip()
+            query = query.or_(f"email.ilike.%{s}%,display_name.ilike.%{s}%")
+        query = query.order(sort_column, desc=descending)
+        offset = (page - 1) * per_page
+        query = query.range(offset, offset + per_page - 1)
+        res = query.execute()
+    except Exception as e:
+        logger.warning(f"Admin list_users select failed: {e}. Falling back to basic profile fields.")
+        try:
+            fallback_query = db.table("profiles").select("id, email, display_name, created_at", count="exact")
+            if search:
+                s = search.strip()
+                fallback_query = fallback_query.or_(f"email.ilike.%{s}%,display_name.ilike.%{s}%")
+            fallback_query = fallback_query.order("created_at", desc=descending)
+            offset = (page - 1) * per_page
+            fallback_query = fallback_query.range(offset, offset + per_page - 1)
+            res = fallback_query.execute()
+        except Exception as e2:
+            logger.error(f"Admin list_users fallback failed: {e2}")
+            res = db.table("profiles").select("*").execute()
 
-    res = query.execute()
     profiles = res.data or []
-    total = res.count if res.count is not None else len(profiles)
+    total = getattr(res, "count", None) if getattr(res, "count", None) is not None else len(profiles)
 
     # Fetch stats for the users in current page
     user_ids = [p["id"] for p in profiles if "id" in p]

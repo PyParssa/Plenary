@@ -45,7 +45,18 @@ export async function loadUserData(userId: string): Promise<{
     supabase.from('cards').select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count'),
   ]);
 
-  if (profileResult.error) throw profileResult.error;
+  let profileData = profileResult.data;
+  if (profileResult.error) {
+    const fallbackProfile = await supabase
+      .from('profiles')
+      .select('email, display_name, created_at, selected_atmospheres')
+      .eq('id', userId)
+      .maybeSingle();
+    if (!fallbackProfile.error) {
+      profileData = fallbackProfile.data as any;
+    }
+  }
+
   if (vouchesResult.error) throw vouchesResult.error;
   if (reflectionsResult.error) throw reflectionsResult.error;
 
@@ -61,13 +72,13 @@ export async function loadUserData(userId: string): Promise<{
     }
   }
 
-  const profile = profileResult.data
+  const profile = profileData
     ? {
-        email: profileResult.data.email,
-        displayName: profileResult.data.display_name ?? undefined,
-        createdAt: new Date(profileResult.data.created_at).getTime(),
-        selectedAtmospheres: profileResult.data.selected_atmospheres ?? [],
-        role: (profileResult.data.role ?? 'user') as UserRole,
+        email: profileData.email,
+        displayName: profileData.display_name ?? undefined,
+        createdAt: new Date(profileData.created_at).getTime(),
+        selectedAtmospheres: profileData.selected_atmospheres ?? [],
+        role: ((profileData as any).role ?? 'user') as UserRole,
       }
     : null;
 

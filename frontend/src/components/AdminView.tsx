@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   AdminCard,
   AdminUser,
@@ -132,8 +132,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   // =========================================================================
-  // LOADERS
+  // TOAST REF & LOADERS
   // =========================================================================
+  const onShowToastRef = useRef(onShowToast);
+  useEffect(() => {
+    onShowToastRef.current = onShowToast;
+  }, [onShowToast]);
 
   const loadCards = useCallback(async () => {
     if (!token) return;
@@ -155,11 +159,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
       setCardsTotal(data.total);
     } catch (err: any) {
       console.error('Error fetching admin cards:', err);
-      onShowToast(err.message || 'Failed to fetch cards');
+      onShowToastRef.current?.(err.message || 'Failed to fetch cards');
     } finally {
       setCardsLoading(false);
     }
-  }, [token, cardsPage, cardsPerPage, cardsSortBy, cardsSortOrder, cardsCategory, cardsPublishedFilter, cardsSearch, onShowToast]);
+  }, [token, cardsPage, cardsPerPage, cardsSortBy, cardsSortOrder, cardsCategory, cardsPublishedFilter, cardsSearch]);
 
   const loadUsers = useCallback(async () => {
     if (!token) return;
@@ -179,11 +183,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
       setUsersTotal(data.total);
     } catch (err: any) {
       console.error('Error fetching admin users:', err);
-      onShowToast(err.message || 'Failed to fetch users');
+      onShowToastRef.current?.(err.message || 'Failed to fetch users');
     } finally {
       setUsersLoading(false);
     }
-  }, [token, usersPage, usersPerPage, usersSortBy, usersSortOrder, usersRoleFilter, usersSearch, onShowToast]);
+  }, [token, usersPage, usersPerPage, usersSortBy, usersSortOrder, usersRoleFilter, usersSearch]);
 
   const loadAnalytics = useCallback(async () => {
     if (!token) return;
@@ -193,21 +197,30 @@ export const AdminView: React.FC<AdminViewProps> = ({
       setAnalytics(data);
     } catch (err: any) {
       console.error('Error fetching analytics:', err);
-      onShowToast(err.message || 'Failed to fetch analytics');
+      onShowToastRef.current?.(err.message || 'Failed to fetch analytics');
     } finally {
       setAnalyticsLoading(false);
     }
-  }, [token, onShowToast]);
+  }, [token]);
 
+  // Distinct effects per active tab to avoid cross-tab refetch cascades
   useEffect(() => {
     if (activeSubTab === 'cards') {
       loadCards();
-    } else if (activeSubTab === 'users') {
+    }
+  }, [activeSubTab, loadCards]);
+
+  useEffect(() => {
+    if (activeSubTab === 'users') {
       loadUsers();
-    } else if (activeSubTab === 'analytics') {
+    }
+  }, [activeSubTab, loadUsers]);
+
+  useEffect(() => {
+    if (activeSubTab === 'analytics') {
       loadAnalytics();
     }
-  }, [activeSubTab, loadCards, loadUsers, loadAnalytics]);
+  }, [activeSubTab, loadAnalytics]);
 
   // =========================================================================
   // CARD ACTIONS
