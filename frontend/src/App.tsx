@@ -245,31 +245,21 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     let authenticatedUserId: string | null = null;
+    let hydrationSeq = 0;
 
     const hydrateSession = async (
       session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'],
-      allowSessionRecheck = true,
     ) => {
       if (!isMounted) return;
 
-      setIsAuthReady(false);
-
-      if (!session?.user?.id && allowSessionRecheck) {
-        const { data: currentSession } = await supabase.auth.getSession();
-        if (currentSession.session?.user?.id) {
-          await hydrateSession(currentSession.session, false);
-          return;
-        }
-        if (authenticatedUserId) return;
-      }
+      const thisSeq = ++hydrationSeq;
 
       if (!session?.user?.id) {
-        setUserId(null);
-        setSessionToken('');
-        setGuestProfile(null);
         setIsAuthReady(true);
         return;
       }
+
+      setIsAuthReady(false);
 
       authenticatedUserId = session.user.id;
       setUserId(session.user.id);
@@ -294,9 +284,12 @@ export default function App() {
           console.error('Could not create authenticated user profile:', error);
         });
       }
+
+      if (!isMounted || thisSeq !== hydrationSeq) return;
+
       try {
         const saved = await loadUserData(session.user.id);
-        if (!isMounted) return;
+        if (!isMounted || thisSeq !== hydrationSeq) return;
         const selectedAtmospheres = saved.profile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]');
         const resolvedRole = resolveUserRole(saved.profile?.email ?? session.user.email, saved.profile?.role);
         setGuestProfile({
@@ -312,6 +305,7 @@ export default function App() {
         setReflectionSessions(saved.reflections);
         setIsJourneyOpen(selectedAtmospheres.length === 0);
       } catch (error) {
+        if (!isMounted || thisSeq !== hydrationSeq) return;
         console.error('Could not load account data:', error);
         setGuestProfile({
           email: session.user.email,
@@ -325,11 +319,24 @@ export default function App() {
     };
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') authenticatedUserId = null;
-      void hydrateSession(session);
-    });
+      if (event === 'SIGNED_OUT') {
+        authenticatedUserId = null;
+        setUserId(null);
+        setSessionToken('');
+        setGuestProfile(null);
+        setIsAuthReady(true);
+        return;
+      }
 
-    supabase.auth.getSession().then(({ data: { session } }) => void hydrateSession(session));
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        void hydrateSession(session);
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESHED' && session?.access_token) {
+        setSessionToken(session.access_token);
+      }
+    });
 
     return () => {
       isMounted = false;
