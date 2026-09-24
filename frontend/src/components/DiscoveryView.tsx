@@ -45,6 +45,26 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
   onSelectAuthorFilter,
   onSelectCategory,
 }) => {
+  const [discoveryData, setDiscoveryData] = useState<{ authors: DiscoveryAuthorCard[], categories: DiscoveryCategoryCard[] }>({
+    authors: DISCOVERY_AUTHORS,
+    categories: DISCOVERY_CATEGORIES
+  });
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchDiscoveryConfig().then(data => {
+      if (isMounted && data) {
+        setDiscoveryData(data);
+      }
+    }).catch(err => {
+      console.error('Failed to fetch dynamic discovery config, falling back to static:', err);
+    }).finally(() => {
+      if (isMounted) setIsLoadingConfig(false);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Helper to count cards matching an author
