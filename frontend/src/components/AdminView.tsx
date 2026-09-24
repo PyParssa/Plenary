@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { AdminDiscoveryTab } from './AdminDiscoveryTab';
 import {
   AdminCard,
   AdminUser,
-  AnalyticsOverview,
+  
   BulkImportCard,
   LifeStage,
   UserRole,
@@ -17,10 +18,11 @@ import {
   adminUpdateUserRole,
   adminUpdateUserPassword,
   adminDeleteUser,
-  adminFetchAnalytics,
+  
 } from '../lib/api';
 import {
   Shield,
+  Compass,
   Layers,
   Users,
   BarChart3,
@@ -68,7 +70,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   onShowToast,
   onCardsModified,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'cards' | 'users' | 'analytics'>('cards');
+  const [activeSubTab, setActiveSubTab] = useState<'cards' | 'users' | 'discovery'>('cards');
 
   // =========================================================================
   // CARDS STATE
@@ -137,11 +139,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
 
-  // =========================================================================
-  // ANALYTICS STATE
-  // =========================================================================
-  const [analytics, setAnalytics] = useState<AnalyticsOverview | null>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  
 
   // =========================================================================
   // TOAST REF & LOADERS
@@ -201,19 +199,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
   }, [token, usersPage, usersPerPage, usersSortBy, usersSortOrder, usersRoleFilter, usersSearch]);
 
-  const loadAnalytics = useCallback(async () => {
-    if (!token) return;
-    setAnalyticsLoading(true);
-    try {
-      const data = await adminFetchAnalytics(token);
-      setAnalytics(data);
-    } catch (err: any) {
-      console.error('Error fetching analytics:', err);
-      onShowToastRef.current?.(err.message || 'Failed to fetch analytics');
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  }, [token]);
+  
 
   // Distinct effects per active tab to avoid cross-tab refetch cascades
   useEffect(() => {
@@ -228,11 +214,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
   }, [activeSubTab, loadUsers]);
 
-  useEffect(() => {
-    if (activeSubTab === 'analytics') {
-      loadAnalytics();
-    }
-  }, [activeSubTab, loadAnalytics]);
+
 
   // =========================================================================
   // CARD ACTIONS
@@ -603,15 +585,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setActiveSubTab('analytics')}
+            onClick={() => setActiveSubTab('discovery')}
             className={`px-5 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all outline-none ${
-              activeSubTab === 'analytics'
+              activeSubTab === 'discovery'
                 ? 'bg-white shadow-xs text-[#14213d]'
                 : 'text-[#14213d]/60 hover:text-[#14213d]'
             }`}
           >
-            <BarChart3 className="w-3.5 h-3.5" />
-            Analytics
+            <Compass className="w-3.5 h-3.5" />
+            Discovery
           </button>
         </div>
       </div>
@@ -1228,143 +1210,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
       )}
 
       {/* ===================================================================== */}
-      {/* 3. ANALYTICS DASHBOARD VIEW */}
+      {/* 3. DISCOVERY MANAGEMENT VIEW */}
       {/* ===================================================================== */}
-      {activeSubTab === 'analytics' && (
-        <div className="space-y-6">
-          {/* Refresh Button */}
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => loadAnalytics()}
-              className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-white border border-[#e5e5e5] hover:bg-[#e5e5e5]/40 text-[#14213d] flex items-center gap-1.5 transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${analyticsLoading ? 'animate-spin' : ''}`} />
-              Refresh Analytics
-            </button>
-          </div>
-
-          {/* Key Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-5 bg-white rounded-2xl border border-[#e5e5e5] shadow-xs">
-              <div className="text-[11px] uppercase font-bold tracking-wider text-[#14213d]/50">
-                Total Users
-              </div>
-              <div className="text-3xl font-extrabold text-[#14213d] mt-2 font-mono">
-                {analytics?.totalUsers ?? '—'}
-              </div>
-              <div className="text-xs text-[#14213d]/60 mt-1">Registered voyagers</div>
-            </div>
-
-            <div className="p-5 bg-white rounded-2xl border border-[#e5e5e5] shadow-xs">
-              <div className="text-[11px] uppercase font-bold tracking-wider text-[#14213d]/50">
-                Total Cards
-              </div>
-              <div className="text-3xl font-extrabold text-[#14213d] mt-2 font-mono">
-                {analytics?.totalCards ?? '—'}
-              </div>
-              <div className="text-xs text-[#14213d]/60 mt-1">
-                {analytics?.publishedCards ?? 0} published • {analytics?.unpublishedCards ?? 0} draft
-              </div>
-            </div>
-
-            <div className="p-5 bg-white rounded-2xl border border-[#e5e5e5] shadow-xs">
-              <div className="text-[11px] uppercase font-bold tracking-wider text-[#14213d]/50">
-                Total Vouches
-              </div>
-              <div className="text-3xl font-extrabold text-[#14213d] mt-2 font-mono">
-                {analytics?.totalVouches ?? '—'}
-              </div>
-              <div className="text-xs text-[#14213d]/60 mt-1">All-time resonance holds</div>
-            </div>
-
-            <div className="p-5 bg-white rounded-2xl border border-[#e5e5e5] shadow-xs">
-              <div className="text-[11px] uppercase font-bold tracking-wider text-[#14213d]/50">
-                Vouches (7 Days)
-              </div>
-              <div className="text-3xl font-extrabold text-[#fca311] mt-2 font-mono">
-                {analytics?.vouchesThisWeek ?? '—'}
-              </div>
-              <div className="text-xs text-[#14213d]/60 mt-1">
-                {analytics?.vouchesToday ?? 0} recorded today
-              </div>
-            </div>
-          </div>
-
-          {/* Leaderboards Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Top 10 Most Vouched Cards */}
-            <div className="bg-white rounded-2xl border border-[#e5e5e5] shadow-xs p-5">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-[#14213d] mb-4 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#fca311]" />
-                Top 10 Most Vouched Inquiries
-              </h3>
-              <div className="space-y-3">
-                {analytics?.topCards?.length ? (
-                  analytics.topCards.map((card, idx) => (
-                    <div
-                      key={card.id}
-                      className="p-3 rounded-xl bg-[#e5e5e5]/20 border border-[#e5e5e5]/60 flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="w-5 h-5 rounded-full bg-[#14213d] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
-                          {idx + 1}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-serif-clean font-medium text-[#14213d] truncate">
-                            {card.question}
-                          </p>
-                          <p className="text-[10px] text-[#14213d]/60 mt-0.5">
-                            {card.author} {card.category ? `• ${card.category}` : ''}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="font-mono font-extrabold px-2.5 py-1 rounded-lg bg-[#fca311]/20 text-[#14213d] shrink-0">
-                        {card.vouchCount} vouches
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-[#14213d]/50 italic">No vouches recorded yet.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Top Active Reflectors */}
-            <div className="bg-white rounded-2xl border border-[#e5e5e5] shadow-xs p-5">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-[#14213d] mb-4 flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#14213d]" />
-                Most Active Socratic Reflectors
-              </h3>
-              <div className="space-y-3">
-                {analytics?.mostActiveReflectors?.length ? (
-                  analytics.mostActiveReflectors.map((reflector, idx) => (
-                    <div
-                      key={reflector.id}
-                      className="p-3 rounded-xl bg-[#e5e5e5]/20 border border-[#e5e5e5]/60 flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="w-5 h-5 rounded-full bg-[#14213d]/80 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
-                          {idx + 1}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-[#14213d] truncate">
-                            {reflector.email}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="font-mono font-bold px-2.5 py-1 rounded-lg bg-[#e5e5e5] text-[#14213d] shrink-0">
-                        {reflector.reflectionCount} sessions
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-[#14213d]/50 italic">No reflection sessions recorded yet.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+      {activeSubTab === 'discovery' && (
+        <AdminDiscoveryTab token={token} onShowToast={onShowToast} />
       )}
 
       {/* ===================================================================== */}

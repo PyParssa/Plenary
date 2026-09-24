@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LifeStage, QuestionCard } from '../types';
+import { fetchDiscoveryConfig } from '../lib/api';
 import {
   DISCOVERY_AUTHORS,
   DISCOVERY_CATEGORIES,
@@ -178,7 +179,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
 
         {/* Author Persona Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {DISCOVERY_AUTHORS.map((author) => {
+          {discoveryData.authors.map((author) => {
             const count = getAuthorCardCount(author.filterKey);
 
             return (
@@ -286,7 +287,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
 
         {/* Categories Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {DISCOVERY_CATEGORIES.map((cat) => {
+          {discoveryData.categories.map((cat) => {
             const count = getCategoryCardCount(cat.filterKey);
 
             return (

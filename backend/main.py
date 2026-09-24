@@ -176,6 +176,19 @@ def normalize_email(value: Any) -> Optional[str]:
 # Endpoints
 # ==========================================
 
+
+@app.get("/api/discovery")
+async def get_discovery():
+    """Return the discovery configuration JSON."""
+    db = get_supabase_admin()
+    res = db.table("app_settings").select("value").eq("key", "discovery").maybe_single().execute()
+    if res.data and "value" in res.data:
+        return res.data["value"]
+    
+    # Fallback to default if not found (or return empty)
+    return {"authors": [], "categories": []}
+
+
 @app.get("/")
 @app.get("/api/health")
 async def health_check():
