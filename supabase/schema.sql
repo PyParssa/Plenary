@@ -100,7 +100,19 @@ drop policy if exists "Authenticated users can read cards" on public.cards;
 drop policy if exists "Anyone can read cards" on public.cards;
 drop policy if exists "Anyone can read published cards" on public.cards;
 create policy "Anyone can read published cards"
-  on public.cards for select using (published = true);
+  on public.cards for select
+  using (
+    published = true
+    or
+    (
+      auth.uid() is not null
+      and exists (
+        select 1 from public.profiles
+        where profiles.id = auth.uid()
+        and profiles.role = 'manager'
+      )
+    )
+  );
 drop policy if exists "Users can create cards" on public.cards;
 drop policy if exists "Creators and managers can create cards" on public.cards;
 create policy "Creators and managers can create cards"

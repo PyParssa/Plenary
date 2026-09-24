@@ -1,355 +1,180 @@
-# Fix: Logout on Page Refresh — Diagnosis & Action Plan
+# Action Plan: Fix Card Publish/Unpublish Visibility Bug
 
-> **Symptom:** User is logged out every time they refresh the page  
-> **Root Cause:** Race condition in `App.tsx` auth initialization + `onAuthStateChange` listener nuking state prematurely  
-> **Date:** September 2026
+## Problem Summary
+
+When a manager unchecks "Published" on a card in the admin panel, the card should become invisible in the public deck view. Instead:
+
+1. **The card remains visible** — the frontend fetches cards and filters by `published !== false`, but the filter is never truly needed because...
+2. **400 Bad Request errors** on both `profiles` and `cards` queries from the frontend Supabase client (anon key).
+
+## Root Cause Analysis
+
+### The 400 errors come from **Supabase Row Level Security (RLS)** policies
+
+Looking at [`schema.sql`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/supabase/schema.sql#L99-L103) and [`003_admin_features.sql`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/supabase/migrations/003_admin_features.sql#L18-L23):
+
+```sql
+CREATE POLICY "Anyone can read published cards"
+  ON public.cards FOR SELECT
+  USING (published = true);
+```
+
+This RLS policy **only allows reading cards where `published = true`**. That's correct for filtering — but the problem is the **frontend query itself**:
+
+In [`database.ts`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/lib/database.ts#L5-L7):
+
+```ts
+.select('id, category, author, author_avatar, author_bio, book, question,
+         backstory, related_inquiries, vouch_count, published')
+```
+
+The query **explicitly selects the `published` column**. Supabase's PostgREST returns a **400 Bad Request** when a query selects columns that are either:
+- Not in the table, OR
+- The table's RLS policy prevents the row from being visible, combined with certain column-selection edge cases
+
+**But more critically**, the `profiles` table RLS is:
+
+```sql
+CREATE POLICY "Users can read their profile"
+  ON public.profiles FOR SELECT USING (auth.uid() = id);
+```
+
+The frontend's `loadUserData` calls `supabase.from('profiles').select('email, display_name, created_at, selected_atmospheres, role')` — the `role` column exists in the schema, so the 400 on profiles is most likely because **the `role` column was added after the initial schema** and the RLS policy or PostgREST schema cache hasn't been refreshed. However, the fallback in the code already handles this.
+
+### Why unpublished cards still appear
+
+The frontend `fetchCards()` and `loadUserData()` both have a client-side filter:
+```ts
+.filter((card: any) => card.published !== false)
+```
+
+This filter **does work correctly** when data is returned. But the RLS policy `published = true` already prevents unpublished cards from being returned by Supabase at the PostgREST level. So the real flow is:
+
+1. Admin unchecks "published" → backend PATCH via service_role key succeeds → card's `published` = `false` in DB ✓
+2. User visits deck → frontend queries cards via **anon key** → RLS policy filters out `published = false` cards ✓
+3. **But the 400 error causes the entire query to fail**, so the frontend falls back to the secondary query (without `published` column), and that fallback query **also gets a 400** because the RLS policy is still blocking.
+
+The 400 is happening because **the query includes `published` in the SELECT list, but RLS is configured in a way that PostgREST returns an error** rather than just filtering rows. This can happen when the PostgREST schema cache is stale or when certain column combinations trigger issues.
+
+### The actual root issues are:
+
+1. **No RLS policy for managers to read ALL cards** (including unpublished) — managers querying via the frontend anon key can only see published cards
+2. **The `published` column in the SELECT list may cause 400s** if the column was added via migration but PostgREST schema cache wasn't refreshed
+3. **No RLS policy allows authenticated users to read cards at all** — only `published = true` cards are visible, and this is the ONLY select policy
 
 ---
 
-## Diagnosis
+## Fix Plan
 
-After a thorough audit of the auth flow, here are the **4 bugs** that combine to cause the logout-on-refresh:
+### Step 1: Add missing RLS policies for `cards` table
 
-### Bug 1 — `onAuthStateChange` fires `INITIAL_SESSION` before `getSession()` resolves, then both race
+> **File:** New migration SQL — `supabase/migrations/004_fix_card_rls.sql`
 
-**File:** [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx#L327-L338)
+```sql
+-- Allow ALL authenticated users to read published cards
+-- (current policy only uses published = true, which should work for anon too)
 
-```tsx
-// Current code — TWO competing auth initializations:
-const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT') authenticatedUserId = null;
-  void hydrateSession(session);  // ← fires immediately with INITIAL_SESSION
-});
+-- Allow managers to read ALL cards (including unpublished) via RLS
+DROP POLICY IF EXISTS "Anyone can read published cards" ON public.cards;
 
-supabase.auth.getSession().then(({ data: { session } }) => void hydrateSession(session)); // ← also fires
+-- Regular users & anonymous can only see published cards
+CREATE POLICY "Anyone can read published cards"
+  ON public.cards FOR SELECT
+  USING (
+    published = true
+    OR
+    -- Managers can see all cards (including unpublished)
+    (
+      auth.uid() IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid()
+        AND profiles.role = 'manager'
+      )
+    )
+  );
 ```
 
-**Problem:** `onAuthStateChange` fires an `INITIAL_SESSION` event synchronously/immediately after subscribing. Then `getSession()` also resolves independently. Both call `hydrateSession()` — the second call sees `isAuthReady = false` (being set by the first) and may clear state or re-process the session, causing flicker.
+### Step 2: Ensure `profiles` RLS allows reading own profile including `role` column
 
-Worse: Supabase v2's `onAuthStateChange` can sometimes emit `SIGNED_OUT` as the first event when the stored session token is expired and auto-refresh hasn't completed yet, which hits this branch:
+The existing policy should work, but if the `role` column was added after initial deployment, the PostgREST schema cache needs a refresh.
 
-```tsx
-if (event === 'SIGNED_OUT') authenticatedUserId = null;
-void hydrateSession(session);  // session is null → clears everything
+> **Action:** Reload PostgREST schema cache in Supabase Dashboard → SQL Editor:
+```sql
+NOTIFY pgrst, 'reload schema';
 ```
 
-### Bug 2 — `hydrateSession` eagerly clears all user state on null session
+### Step 3: Fix frontend `database.ts` fallback handling
 
-**File:** [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx#L266-L272)
+> **File:** [`frontend/src/lib/database.ts`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/lib/database.ts)
 
-```tsx
-if (!session?.user?.id) {
-  setUserId(null);
-  setSessionToken('');
-  setGuestProfile(null);  // ← wipes the entire UI state
-  setIsAuthReady(true);
-  return;
-}
+The current fallback queries drop the `published` and `vouch_count` columns. When the fallback fires, ALL cards are returned (no `published` column to filter on), and the client-side filter `card.published !== false` passes because `undefined !== false` is `true`. This means **unpublished cards leak through on fallback**.
+
+**Fix:** Make the fallback query also filter server-side:
+
+```ts
+// In fetchCards() fallback — add .eq('published', true)
+const fallback = await supabase
+  .from('cards')
+  .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries')
+  .eq('published', true);
 ```
 
-**Problem:** If the first `onAuthStateChange` event has no session (e.g., token is being refreshed), this immediately nukes all user state. Even if the token refreshes successfully a moment later, the UI has already been reset to logged-out state and re-renders.
+Same fix needed in `loadUserData()` fallback.
 
-### Bug 3 — No guard against re-entrant `hydrateSession` calls
+### Step 4: Fix frontend `database.ts` — filter for published in primary query too
 
-**File:** [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx#L249-L325)
+Even though RLS should handle it, add an explicit `.eq('published', true)` to the primary frontend queries as defense-in-depth:
 
-```tsx
-const hydrateSession = async (session, allowSessionRecheck = true) => {
-  if (!isMounted) return;
-  setIsAuthReady(false);  // ← resets loading state every time
-  // ... long async work follows
-};
+```ts
+// In fetchCards()
+let { data, error } = await supabase
+  .from('cards')
+  .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count, published')
+  .eq('published', true);  // <-- ADD THIS
 ```
 
-**Problem:** `hydrateSession` is async and takes time (fetches profile, cards, reflections from Supabase). When called twice in quick succession (from both the listener and `getSession`), both invocations run concurrently, causing race conditions with state updates. There's no lock, no debounce, no sequence counter.
+```ts
+// In loadUserData() — the cards sub-query
+supabase.from('cards')
+  .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count, published')
+  .eq('published', true),  // <-- ADD THIS
+```
 
-### Bug 4 — `TOKEN_REFRESHED` event is not handled
+### Step 5: Refresh PostgREST schema cache
 
-The `onAuthStateChange` callback doesn't check the event type. When Supabase auto-refreshes the token (which happens on page load if the token is near expiration), it fires `TOKEN_REFRESHED` with a new session. This triggers a full `hydrateSession()` re-run (re-fetching profile, cards, etc.) which is wasteful and can cause state glitches.
+> **Action:** Run in Supabase SQL Editor after applying the migration:
+
+```sql
+NOTIFY pgrst, 'reload schema';
+```
+
+This forces PostgREST to re-read the table schemas, resolving 400 errors caused by newly-added columns (`published`, `role`, `vouch_count`) not being recognized.
 
 ---
 
-## The Fix — Step by Step
+## Files to Modify
 
-### Step 1 — Remove the redundant `getSession()` call
+| # | File | Change |
+|---|------|--------|
+| 1 | `supabase/migrations/004_fix_card_rls.sql` | **CREATE** — New migration with manager-aware RLS policy |
+| 2 | `supabase/schema.sql` | **UPDATE** — Update the card SELECT policy to include manager bypass |
+| 3 | `frontend/src/lib/database.ts` | **UPDATE** — Add `.eq('published', true)` to both primary and fallback card queries |
 
-**File:** [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx#L327-L338)
+## Supabase Dashboard Actions (Manual)
 
-`onAuthStateChange` in Supabase v2 **already** fires an `INITIAL_SESSION` event with the current session. The separate `getSession().then(...)` is redundant and is the primary source of the race.
-
-**Change:**
-
-```tsx
-// BEFORE (two competing sources):
-const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT') authenticatedUserId = null;
-  void hydrateSession(session);
-});
-
-supabase.auth.getSession().then(({ data: { session } }) => void hydrateSession(session));
-
-// AFTER (single source of truth):
-const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT') {
-    authenticatedUserId = null;
-    setUserId(null);
-    setSessionToken('');
-    setGuestProfile(null);
-    setIsAuthReady(true);
-    return;
-  }
-
-  // Only hydrate on meaningful events
-  if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-    void hydrateSession(session);
-  }
-
-  // For TOKEN_REFRESHED, just update the token — no full re-hydration needed
-  if (event === 'TOKEN_REFRESHED' && session?.access_token) {
-    setSessionToken(session.access_token);
-  }
-});
-```
-
-> [!IMPORTANT]
-> Removing the `getSession()` call is safe because `onAuthStateChange` in `@supabase/supabase-js` v2 fires `INITIAL_SESSION` synchronously upon subscription with the current session from localStorage.
-
-### Step 2 — Add a re-entrancy guard to `hydrateSession`
-
-**File:** [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx#L249-L325)
-
-Add a sequence counter so that if a newer invocation starts, the older one stops updating state:
-
-```tsx
-useEffect(() => {
-  let isMounted = true;
-  let authenticatedUserId: string | null = null;
-  let hydrationSeq = 0;  // ← ADD THIS
-
-  const hydrateSession = async (
-    session: /* ... */,
-  ) => {
-    if (!isMounted) return;
-
-    const thisSeq = ++hydrationSeq;  // ← ADD THIS
-
-    if (!session?.user?.id) {
-      // Don't wipe state here — only SIGNED_OUT should do that
-      // (handled in the event listener above)
-      setIsAuthReady(true);
-      return;
-    }
-
-    setIsAuthReady(false);
-
-    authenticatedUserId = session.user.id;
-    setUserId(session.user.id);
-    setSessionToken(session.access_token ?? '');
-
-    // ... (existing profile fetch logic) ...
-
-    // Before every state update after an async gap, check:
-    if (!isMounted || thisSeq !== hydrationSeq) return;  // ← ADD THIS
-
-    // ... (rest of state updates) ...
-
-    setIsAuthReady(true);
-  };
-
-  // ... rest of effect
-}, []);
-```
-
-### Step 3 — Don't nuke `guestProfile` on transient null sessions
-
-**File:** [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx#L255-L272)
-
-Remove the `allowSessionRecheck` logic and the defensive `getSession()` re-check inside `hydrateSession`. This was a workaround for the race condition — fix the root cause instead of adding workaround layers.
-
-**Before:**
-```tsx
-if (!session?.user?.id && allowSessionRecheck) {
-  const { data: currentSession } = await supabase.auth.getSession();
-  if (currentSession.session?.user?.id) {
-    await hydrateSession(currentSession.session, false);
-    return;
-  }
-  if (authenticatedUserId) return;
-}
-
-if (!session?.user?.id) {
-  setUserId(null);
-  setSessionToken('');
-  setGuestProfile(null);
-  setIsAuthReady(true);
-  return;
-}
-```
-
-**After:**
-```tsx
-if (!session?.user?.id) {
-  // Only mark as ready, don't clear state — SIGNED_OUT handler does that
-  setIsAuthReady(true);
-  return;
-}
-```
-
-### Step 4 — Verify Supabase client config (already correct ✅)
-
-**File:** [`supabase.ts`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/lib/supabase.ts)
-
-The Supabase client configuration is actually correct:
-
-```tsx
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,      // ✅ stores session in localStorage
-    autoRefreshToken: true,     // ✅ refreshes expired tokens automatically
-    detectSessionInUrl: true,   // ✅ handles OAuth/magic-link redirects
-  },
-});
-```
-
-This means the session IS being stored in `localStorage` by Supabase (not cookies — Supabase JS v2 uses localStorage by default). The problem isn't storage, it's the App.tsx initialization code discarding the stored session on load.
+| # | Action |
+|---|--------|
+| 1 | Run migration `004_fix_card_rls.sql` in SQL Editor |
+| 2 | Run `NOTIFY pgrst, 'reload schema';` to refresh PostgREST cache |
+| 3 | Verify in Table Editor that `cards` table has `published` column visible |
+| 4 | Verify RLS policies on `cards` table show the updated policy |
 
 ---
 
-## Summary of Changes
+## Verification Steps
 
-| File | Change | Why |
-|---|---|---|
-| [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx) L327-332 | Remove redundant `supabase.auth.getSession()` call | Eliminates the race condition (dual initialization) |
-| [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx) L327-330 | Filter `onAuthStateChange` events by type | Prevents `TOKEN_REFRESHED` from triggering full re-hydration; prevents premature `SIGNED_OUT` from clearing state |
-| [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx) L249-325 | Add `hydrationSeq` counter to `hydrateSession` | Prevents stale async hydrations from clobbering newer state |
-| [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx) L255-272 | Remove `allowSessionRecheck` + defensive `getSession()` inside hydration | Removes unnecessary complexity; root cause is fixed instead |
-| [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx) L266-272 | Stop clearing `guestProfile`/`userId` on null session in `hydrateSession` | Only `SIGNED_OUT` event should clear user state, not a transient null session |
-
----
-
-## Full Corrected `useEffect` Block
-
-Here is the complete corrected auth initialization effect for [`App.tsx`](file:///run/media/parssa/Extra/backend/Plenary/Plenary/frontend/src/App.tsx#L245-L338):
-
-```tsx
-useEffect(() => {
-  let isMounted = true;
-  let authenticatedUserId: string | null = null;
-  let hydrationSeq = 0;
-
-  const hydrateSession = async (
-    session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'],
-  ) => {
-    if (!isMounted) return;
-
-    const thisSeq = ++hydrationSeq;
-
-    if (!session?.user?.id) {
-      setIsAuthReady(true);
-      return;
-    }
-
-    setIsAuthReady(false);
-
-    authenticatedUserId = session.user.id;
-    setUserId(session.user.id);
-    setSessionToken(session.access_token ?? '');
-    const sessionEmail = session.user.email ?? '';
-    const sessionDisplayName = typeof session.user.user_metadata?.display_name === 'string'
-      ? session.user.user_metadata.display_name
-      : typeof session.user.user_metadata?.full_name === 'string'
-        ? session.user.user_metadata.full_name
-        : undefined;
-    if (sessionEmail) {
-      const bootstrapResponse = session.access_token
-        ? await fetch(getApiUrl('/api/account/bootstrap'), {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          })
-        : null;
-      if (bootstrapResponse && !bootstrapResponse.ok) {
-        console.error('Could not bootstrap authenticated user profile:', await bootstrapResponse.text());
-      }
-      await saveProfile(session.user.id, sessionEmail, sessionDisplayName).catch((error) => {
-        console.error('Could not create authenticated user profile:', error);
-      });
-    }
-
-    if (!isMounted || thisSeq !== hydrationSeq) return;
-
-    try {
-      const saved = await loadUserData(session.user.id);
-      if (!isMounted || thisSeq !== hydrationSeq) return;
-      const selectedAtmospheres = saved.profile?.selectedAtmospheres ?? JSON.parse(localStorage.getItem('plenary_journey') ?? '[]');
-      const resolvedRole = resolveUserRole(saved.profile?.email ?? session.user.email, saved.profile?.role);
-      setGuestProfile({
-        email: saved.profile?.email ?? session.user.email ?? '',
-        displayName: saved.profile?.displayName ?? session.user.user_metadata?.display_name,
-        createdAt: saved.profile?.createdAt ?? Date.now(),
-        selectedAtmospheres,
-        role: resolvedRole,
-      });
-      setCards((current) => saved.cards.length > 0
-        ? applyVouches(saved.cards, saved.vouchedCardIds)
-        : applyVouches(current, saved.vouchedCardIds));
-      setReflectionSessions(saved.reflections);
-      setIsJourneyOpen(selectedAtmospheres.length === 0);
-    } catch (error) {
-      if (!isMounted || thisSeq !== hydrationSeq) return;
-      console.error('Could not load account data:', error);
-      setGuestProfile({
-        email: session.user.email,
-        createdAt: Date.now(),
-        selectedAtmospheres: JSON.parse(localStorage.getItem('plenary_journey') ?? '[]'),
-        role: resolveUserRole(sessionEmail),
-      });
-      setIsJourneyOpen(!localStorage.getItem('plenary_journey'));
-    }
-    setIsAuthReady(true);
-  };
-
-  const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_OUT') {
-      authenticatedUserId = null;
-      setUserId(null);
-      setSessionToken('');
-      setGuestProfile(null);
-      setIsAuthReady(true);
-      return;
-    }
-
-    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-      void hydrateSession(session);
-      return;
-    }
-
-    if (event === 'TOKEN_REFRESHED' && session?.access_token) {
-      setSessionToken(session.access_token);
-    }
-  });
-
-  return () => {
-    isMounted = false;
-    authListener.subscription.unsubscribe();
-  };
-}, []);
-```
-
----
-
-## Verification
-
-After applying the fix, verify:
-
-- [ ] Sign in → refresh page → user stays logged in ✅
-- [ ] Sign in → close tab → reopen → user stays logged in ✅
-- [ ] Sign in → wait for token to expire (~1 hour) → refresh → auto-refresh works, stays logged in ✅
-- [ ] Sign out → refresh → stays signed out ✅
-- [ ] Open DevTools → Application → Local Storage → confirm `sb-*-auth-token` key exists after sign-in ✅
-- [ ] No double-flash of logged-out state during page load ✅
-
----
-
-## Why This Wasn't a Cookie Problem
-
-The initial suspicion was cookies, but Supabase JS v2 uses **localStorage** for session persistence by default (not cookies). The session was being stored correctly — the problem was that the React initialization code in `App.tsx` was **discarding the stored session** due to a race condition between two competing auth initialization paths (`onAuthStateChange` and `getSession()`), where a transient `null` session fired first and wiped all user state before the real session could be loaded.
+1. Log in as manager → Admin panel → Uncheck "Published" on a card → Save
+2. Open app in incognito (or as regular user) → Card should NOT appear in deck
+3. Log back in as manager → Card should still appear in admin panel card list
+4. Check browser console → No 400 errors on `/rest/v1/cards` or `/rest/v1/profiles`

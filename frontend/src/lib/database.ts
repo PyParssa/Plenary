@@ -4,12 +4,23 @@ import { GuestProfile, QuestionCard, ReflectionSession, UserRole } from '../type
 export async function fetchCards(): Promise<QuestionCard[]> {
   let { data, error } = await supabase
     .from('cards')
-    .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count, published');
+    .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count, published')
+    .eq('published', true);
 
   if (error) {
-    const fallback = await supabase
+    // Fallback 1: try without vouch_count / other new columns but keep published=true filter if available
+    let fallback = await supabase
       .from('cards')
-      .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries');
+      .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, published')
+      .eq('published', true);
+
+    if (fallback.error || !fallback.data) {
+      // Fallback 2: minimal columns
+      fallback = await supabase
+        .from('cards')
+        .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries');
+    }
+
     if (!fallback.error && fallback.data) {
       data = fallback.data as any;
       error = null;
@@ -45,7 +56,7 @@ export async function loadUserData(userId: string): Promise<{
     supabase.from('profiles').select('email, display_name, created_at, selected_atmospheres, role').eq('id', userId).maybeSingle(),
     supabase.from('card_vouches').select('card_id').eq('user_id', userId),
     supabase.from('reflection_sessions').select('card_id, session').eq('user_id', userId),
-    supabase.from('cards').select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count, published'),
+    supabase.from('cards').select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, vouch_count, published').eq('published', true),
   ]);
 
   let profileData = profileResult.data;
@@ -65,9 +76,15 @@ export async function loadUserData(userId: string): Promise<{
 
   let cardRows = cardsResult.data as any[];
   if (cardsResult.error) {
-    const fallbackCards = await supabase
+    let fallbackCards = await supabase
       .from('cards')
-      .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries');
+      .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries, published')
+      .eq('published', true);
+    if (fallbackCards.error || !fallbackCards.data) {
+      fallbackCards = await supabase
+        .from('cards')
+        .select('id, category, author, author_avatar, author_bio, book, question, backstory, related_inquiries');
+    }
     if (!fallbackCards.error && fallbackCards.data) {
       cardRows = fallbackCards.data as any[];
     } else {
