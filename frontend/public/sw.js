@@ -1,4 +1,4 @@
-const CACHE_NAME = 'plenary-v4';
+const CACHE_NAME = 'plenary-v5';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
@@ -7,9 +7,7 @@ const PRECACHE_ASSETS = [
   '/favicon.svg',
   '/apple-touch-icon.png',
   '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
   '/icons/icon-maskable-192x192.png',
-  '/icons/icon-maskable-512x512.png',
 ];
 
 self.addEventListener('install', (event) => {

@@ -11,15 +11,13 @@ createRoot(document.getElementById('root')!).render(
 
 // Register Service Worker for PWA installability and offline support
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js', { scope: '/' })
-      .then((registration) => {
-        console.log('Plenary ServiceWorker active with scope:', registration.scope);
-      })
-      .catch((error) => {
-        console.warn('Plenary ServiceWorker registration failed:', error);
-      });
-  });
+  navigator.serviceWorker
+    .register('/sw.js', { scope: '/' })
+    .then((registration) => {
+      console.log('Plenary ServiceWorker active with scope:', registration.scope);
+    })
+    .catch((error) => {
+      console.warn('Plenary ServiceWorker registration failed:', error);
+    });
 }
 
