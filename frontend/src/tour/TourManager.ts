@@ -56,20 +56,10 @@ export const TOUR_STEPS: DriveStep[] = [
   {
     element: () => getTargetElement('[data-tour="tour-nav-vault"]', '[data-tour="tour-nav-vault-mobile"]') as Element,
     popover: {
-      title: 'Your Personal Vault',
+      title: 'My Vault & Socratic AI',
       description:
-        "Your Vault holds every question you've vouched for. Return here to reflect on them.",
+        "Your Vault preserves every question you've vouched for. Enter My Vault to revisit your inquiries and engage in deep Socratic AI reflections.",
       side: 'bottom',
-      align: 'center',
-    },
-  },
-  {
-    element: () => getTargetElement('[data-tour="tour-reflect-btn"]') as Element,
-    popover: {
-      title: 'Socratic AI Reflection',
-      description:
-        'Tap here to open a Socratic AI conversation. It will challenge your thinking through the lens of this card.',
-      side: 'top',
       align: 'center',
     },
   },
@@ -88,7 +78,7 @@ export const TOUR_STEPS: DriveStep[] = [
     popover: {
       title: 'Personal Account',
       description:
-        'Set up your account to sync your vouches across devices and unlock AI reflections.',
+        'Set up your account to sync your vouches across devices and manage your preferences.',
       side: 'bottom',
       align: 'end',
     },

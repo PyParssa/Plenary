@@ -345,21 +345,6 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
             />
           </div>
 
-          {/* Reflect icon button for direct Socratic AI access */}
-          <button
-            id={`reflect-card-btn-${card.id}`}
-            type="button"
-            data-tour="tour-reflect-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenReflection();
-            }}
-            title="Reflect with Socratic AI"
-            className="w-12 h-12 rounded-full border border-[#14213d] flex items-center justify-center opacity-70 hover:opacity-100 hover:border-[#fca311] transition-all bg-white outline-none cursor-pointer group"
-          >
-            <Sparkles className="w-4 h-4 stroke-[#14213d] group-hover:stroke-[#fca311] transition-colors" />
-          </button>
-
           {/* Share Button */}
           <button
             id={`share-card-btn-${card.id}`}

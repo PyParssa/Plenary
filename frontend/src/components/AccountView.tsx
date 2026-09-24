@@ -170,7 +170,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ profile, onUpdateProfi
           <h2 className="text-xl font-semibold text-[#14213d]">Interactive Guided Tour</h2>
         </div>
         <p className="text-xs text-[#14213d]/60 max-w-xl mb-4">
-          Want a guided walkthrough? Take the tour to see how to swipe through the inquiry deck, use the 3-second hold to vouch questions into your Vault, and explore Socratic AI reflections.
+          Want a guided walkthrough? Take the tour to see how to swipe through the inquiry deck, use the 3-second hold to vouch questions into your Vault, and explore Socratic AI reflections in My Vault.
         </p>
         <button
           id="replay-tour-btn"
