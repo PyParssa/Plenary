@@ -1,5 +1,5 @@
-const CACHE_NAME = 'plenary-v2';
-const PRECACHE_URLS = [
+const CACHE_NAME = 'plenary-v3';
+const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
@@ -10,58 +10,69 @@ const PRECACHE_URLS = [
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
   '/icons/icon-maskable-192x192.png',
-  '/icons/icon-maskable-512x512.png'
+  '/icons/icon-maskable-512x512.png',
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
-  );
   self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      // Use Promise.allSettled so individual optional asset failures never block SW installation
+      return Promise.allSettled(
+        PRECACHE_ASSETS.map((url) =>
+          fetch(url, { cache: 'no-cache' })
+            .then((response) => {
+              if (response && response.ok) {
+                return cache.put(url, response);
+              }
+            })
+            .catch(() => {
+              // Ignore single asset fetch failure during precache
+            })
+        )
+      );
+    })
+  );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+        )
       )
-    )
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
-    return;
-  }
+  if (event.request.method !== 'GET') return;
 
-  // API calls are bypassed or handled network-only
-  if (event.request.url.includes('/api/')) {
+  const url = new URL(event.request.url);
+
+  // Bypass non-http, API, and auth routes
+  if (!url.protocol.startsWith('http') || url.pathname.startsWith('/api') || url.pathname.startsWith('/auth')) {
     return;
   }
 
   event.respondWith(
     fetch(event.request)
-      .then((response) => {
-        if (response && response.status === 200 && response.type === 'basic') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
-        return response;
+        return networkResponse;
       })
-      .catch(() =>
-        caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-        })
-      )
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.mode === 'navigate') {
+          return (await caches.match('/index.html')) || (await caches.match('/'));
+        }
+      })
   );
 });
-
