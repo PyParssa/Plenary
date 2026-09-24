@@ -185,9 +185,14 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
               <div
                 key={author.id}
                 id={`author-persona-${author.id}`}
-                style={{ backgroundColor: author.accentColor }}
+                style={
+                  {
+                    '--card-bg': author.accentColor,
+                    '--card-bg-dark': author.darkAccentColor,
+                  } as React.CSSProperties
+                }
                 onClick={() => onSelectAuthorFilter(author.filterKey, author.name)}
-                className="rounded-3xl border border-[#e5e5e5] p-6 flex flex-col justify-between hover:shadow-md hover:border-[#14213d]/30 transition-all duration-200 cursor-pointer group relative overflow-hidden"
+                className="discovery-card rounded-3xl border border-[#e5e5e5] p-6 flex flex-col justify-between hover:shadow-md transition-all duration-200 cursor-pointer group relative overflow-hidden"
               >
                 <div>
                   {/* Top Row: Avatar & Tagline */}
@@ -195,7 +200,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                     <img
                       src={author.avatarUrl}
                       alt={author.name}
-                      className="w-12 h-12 rounded-full object-cover border border-[#e5e5e5] bg-white shrink-0"
+                      className="w-12 h-12 rounded-full object-cover border border-[#e5e5e5] shrink-0"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = '/assets/default-avatar.svg';
@@ -217,7 +222,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                       <Quote className="w-3 h-3 text-[#fca311]" />
                       <span>{author.tagline}</span>
                     </p>
-                    <p className="font-serif italic text-sm text-[#14213d] leading-snug line-clamp-3 bg-white/70 backdrop-blur-xs p-3 rounded-2xl border border-black/5">
+                    <p className="discovery-quote-box font-serif italic text-sm text-[#14213d] leading-snug line-clamp-3 bg-white/70 backdrop-blur-xs p-3 rounded-2xl border border-black/5">
                       “{author.signatureQuestion}”
                     </p>
                   </div>
@@ -229,7 +234,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                 </div>
 
                 {/* Footer Bar */}
-                <div className="pt-3.5 border-t border-black/10 flex items-center justify-between">
+                <div className="discovery-divider pt-3.5 border-t border-black/10 flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#14213d]/60">
                     <Layers className="w-3.5 h-3.5 text-[#fca311]" />
                     <span>{count} {count === 1 ? 'inquiry' : 'inquiries'}</span>
@@ -288,14 +293,19 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
               <div
                 key={cat.id}
                 id={`category-card-${cat.id}`}
-                style={{ backgroundColor: cat.accentColor }}
+                style={
+                  {
+                    '--card-bg': cat.accentColor,
+                    '--card-bg-dark': cat.darkAccentColor,
+                  } as React.CSSProperties
+                }
                 onClick={() => onSelectCategory(cat.filterKey, cat.label)}
-                className="rounded-3xl border border-[#e5e5e5] p-6 flex flex-col justify-between hover:shadow-md hover:border-[#14213d]/30 transition-all duration-200 cursor-pointer group"
+                className="discovery-card rounded-3xl border border-[#e5e5e5] p-6 flex flex-col justify-between hover:shadow-md transition-all duration-200 cursor-pointer group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-3xl select-none">{cat.emoji}</span>
-                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/80 border border-black/5 text-[#14213d]/70 font-medium">
+                    <span className="discovery-badge text-[10px] px-2.5 py-0.5 rounded-full bg-white/80 border border-black/5 text-[#14213d]/70 font-medium">
                       {count} {count === 1 ? 'card' : 'cards'}
                     </span>
                   </div>
@@ -313,7 +323,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-black/10 flex items-center justify-end">
+                <div className="discovery-divider pt-3 border-t border-black/10 flex items-center justify-end">
                   <span className="text-xs font-semibold text-[#14213d] flex items-center gap-1 group-hover:underline underline-offset-4">
                     <span>Open Theme Deck</span>
                     <ArrowRight className="w-3.5 h-3.5 text-[#fca311] transition-transform group-hover:translate-x-0.5" />

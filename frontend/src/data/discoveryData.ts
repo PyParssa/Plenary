@@ -9,6 +9,7 @@ export interface DiscoveryAuthorCard {
   description: string;
   filterKey: string;
   accentColor: string;
+  darkAccentColor: string;
 }
 
 export interface DiscoveryCategoryCard {
@@ -19,6 +20,7 @@ export interface DiscoveryCategoryCard {
   description: string;
   filterKey: LifeStage;
   accentColor: string;
+  darkAccentColor: string;
 }
 
 export const DISCOVERY_AUTHORS: DiscoveryAuthorCard[] = [
@@ -31,6 +33,7 @@ export const DISCOVERY_AUTHORS: DiscoveryAuthorCard[] = [
     description: 'Co-founder of Apple — on craft, ruthless focus, design & mortality without compromise.',
     filterKey: 'Steve Jobs',
     accentColor: '#f5f0eb',
+    darkAccentColor: '#1a222a',
   },
   {
     id: 'naval-ravikant',
@@ -41,6 +44,7 @@ export const DISCOVERY_AUTHORS: DiscoveryAuthorCard[] = [
     description: 'Philosopher & investor — on leverage, specific knowledge, internal peace & clarity.',
     filterKey: 'Naval Ravikant',
     accentColor: '#eef4fb',
+    darkAccentColor: '#162232',
   },
   {
     id: 'viktor-frankl',
@@ -51,6 +55,7 @@ export const DISCOVERY_AUTHORS: DiscoveryAuthorCard[] = [
     description: 'Founder of Logotherapy — on meaning, suffering & the irreducible human will.',
     filterKey: 'Viktor Frankl',
     accentColor: '#f3f0f8',
+    darkAccentColor: '#201b2c',
   },
   {
     id: 'marcus-aurelius',
@@ -61,6 +66,7 @@ export const DISCOVERY_AUTHORS: DiscoveryAuthorCard[] = [
     description: 'Roman Emperor & Stoic — on duty, discipline, impermanence & inner sovereignty.',
     filterKey: 'Marcus Aurelius',
     accentColor: '#f0f5f0',
+    darkAccentColor: '#18241c',
   },
   {
     id: 'paul-graham',
@@ -71,6 +77,7 @@ export const DISCOVERY_AUTHORS: DiscoveryAuthorCard[] = [
     description: 'YC co-founder & essayist — on startups, taste, intellectual honesty & relentlessly resourceful work.',
     filterKey: 'Paul Graham',
     accentColor: '#fdf8f0',
+    darkAccentColor: '#252018',
   },
   {
     id: 'seneca',
@@ -81,6 +88,7 @@ export const DISCOVERY_AUTHORS: DiscoveryAuthorCard[] = [
     description: 'Roman Stoic statesman — on time scarcity, tranquility, anger & the art of living with dignity.',
     filterKey: 'Seneca',
     accentColor: '#faf5ee',
+    darkAccentColor: '#241f19',
   },
   {
     id: 'mary-oliver',
@@ -91,6 +99,7 @@ export const DISCOVERY_AUTHORS: DiscoveryAuthorCard[] = [
     description: 'Pulitzer-winning poet — on fierce attention, wildness, presence & the sacredness of reality.',
     filterKey: 'Mary Oliver',
     accentColor: '#f0f7f3',
+    darkAccentColor: '#17241e',
   },
 ];
 
@@ -103,6 +112,7 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategoryCard[] = [
     description: 'When you sense the path no longer fits — or never did.',
     filterKey: 'Career Reinvention',
     accentColor: '#eef4fb',
+    darkAccentColor: '#162332',
   },
   {
     id: 'cat-life-decision',
@@ -112,6 +122,7 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategoryCard[] = [
     description: 'Major choices that cannot be undone — finding stillness before you leap.',
     filterKey: 'Existential Inquiry',
     accentColor: '#fdf8f0',
+    darkAccentColor: '#252018',
   },
   {
     id: 'cat-relationships',
@@ -121,6 +132,7 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategoryCard[] = [
     description: 'When a connection demands more sovereign honesty than comfort.',
     filterKey: 'Deep Relationships',
     accentColor: '#fdf0f3',
+    darkAccentColor: '#271a22',
   },
   {
     id: 'cat-identity',
@@ -130,6 +142,7 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategoryCard[] = [
     description: 'Questions for when you need to meet your own quiet mind again.',
     filterKey: 'Solitude & Identity',
     accentColor: '#f3f0f8',
+    darkAccentColor: '#201a2a',
   },
   {
     id: 'cat-creativity',
@@ -139,6 +152,7 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategoryCard[] = [
     description: 'When the blank page or unmade product calls for courage.',
     filterKey: 'Creativity & Craft',
     accentColor: '#f0f5f0',
+    darkAccentColor: '#17241d',
   },
   {
     id: 'cat-midlife',
@@ -148,6 +162,7 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategoryCard[] = [
     description: 'When ambition meets accumulated reflection — and priorities recalibrate.',
     filterKey: 'Midlife Reckoning',
     accentColor: '#faf5ee',
+    darkAccentColor: '#241f18',
   },
   {
     id: 'cat-mortality',
@@ -157,5 +172,6 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategoryCard[] = [
     description: 'Confronting the finite nature of time to illuminate the present moment.',
     filterKey: 'Mortality & Meaning',
     accentColor: '#f5f0eb',
+    darkAccentColor: '#211d19',
   },
 ];

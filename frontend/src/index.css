@@ -140,6 +140,42 @@ body {
   font-family: 'Cormorant Garamond', Georgia, Cambria, serif;
 }
 
+/* Discovery Cards Styling */
+.discovery-card {
+  background-color: var(--card-bg, #ffffff);
+  border-color: #e5e5e5;
+}
+
+.night-mode .discovery-card {
+  background-color: var(--card-bg-dark, #17232d) !important;
+  border-color: #34424d !important;
+}
+
+.night-mode .discovery-card:hover {
+  border-color: #526678 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+.night-mode .discovery-quote-box {
+  background-color: rgba(16, 24, 32, 0.75) !important;
+  border-color: rgba(245, 241, 232, 0.1) !important;
+  color: #f5f1e8 !important;
+}
+
+.night-mode .discovery-badge {
+  background-color: rgba(16, 24, 32, 0.8) !important;
+  border-color: rgba(245, 241, 232, 0.12) !important;
+  color: #f5f1e8 !important;
+}
+
+.night-mode .discovery-divider {
+  border-color: rgba(245, 241, 232, 0.12) !important;
+}
+
+.night-mode .discovery-card:hover h3 {
+  color: #ffffff !important;
+}
+
 /* Custom crisp scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
@@ -155,4 +191,5 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #14213d;
 }
+
 
