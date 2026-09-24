@@ -655,10 +655,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   setCardsCategory(e.target.value as LifeStage);
                   setCardsPage(1);
                 }}
-                className="px-3 py-1.5 text-xs bg-[#e5e5e5]/20 border border-[#e5e5e5] rounded-xl text-[#14213d] dark:bg-[#14213d] dark:text-white focus:outline-none"
+                className="px-3 py-1.5 text-xs bg-[#e5e5e5]/20 border border-[#e5e5e5] rounded-xl text-[#14213d] focus:outline-none"
               >
                 {LIFE_STAGES.map((stg) => (
-                  <option key={stg} value={stg}>
+                  <option className="bg-white text-[#14213d]" key={stg} value={stg}>
                     {stg}
                   </option>
                 ))}
@@ -671,11 +671,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   setCardsPublishedFilter(e.target.value as any);
                   setCardsPage(1);
                 }}
-                className="px-3 py-1.5 text-xs bg-[#e5e5e5]/20 border border-[#e5e5e5] rounded-xl text-[#14213d] dark:bg-[#14213d] dark:text-white focus:outline-none"
+                className="px-3 py-1.5 text-xs bg-[#e5e5e5]/20 border border-[#e5e5e5] rounded-xl text-[#14213d] focus:outline-none"
               >
-                <option value="all">All Statuses</option>
-                <option value="published">Published Only</option>
-                <option value="unpublished">Unpublished Only</option>
+                <option className="bg-white text-[#14213d]" value="all">All Statuses</option>
+                <option className="bg-white text-[#14213d]" value="published">Published Only</option>
+                <option className="bg-white text-[#14213d]" value="unpublished">Unpublished Only</option>
               </select>
 
               <button
@@ -981,12 +981,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     setCardsPerPage(Number(e.target.value));
                     setCardsPage(1);
                   }}
-                  className="px-2 py-1 bg-white border border-[#e5e5e5] rounded-lg text-xs dark:bg-[#14213d] dark:text-white"
+                  className="px-2 py-1 bg-white border border-[#e5e5e5] rounded-lg text-xs"
                 >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
+                  <option className="bg-white text-[#14213d]" value={10}>10</option>
+                  <option className="bg-white text-[#14213d]" value={25}>25</option>
+                  <option className="bg-white text-[#14213d]" value={50}>50</option>
+                  <option className="bg-white text-[#14213d]" value={100}>100</option>
                 </select>
                 <span>cards per page • Total {cardsTotal} cards</span>
               </div>
@@ -1047,12 +1047,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   setUsersRoleFilter(e.target.value);
                   setUsersPage(1);
                 }}
-                className="px-3 py-1.5 text-xs bg-[#e5e5e5]/20 border border-[#e5e5e5] rounded-xl text-[#14213d] dark:bg-[#14213d] dark:text-white focus:outline-none"
+                className="px-3 py-1.5 text-xs bg-[#e5e5e5]/20 border border-[#e5e5e5] rounded-xl text-[#14213d] focus:outline-none"
               >
-                <option value="all">All Roles</option>
-                <option value="user">User</option>
-                <option value="creator">Creator</option>
-                <option value="manager">Manager</option>
+                <option className="bg-white text-[#14213d]" value="all">All Roles</option>
+                <option className="bg-white text-[#14213d]" value="user">User</option>
+                <option className="bg-white text-[#14213d]" value="creator">Creator</option>
+                <option className="bg-white text-[#14213d]" value="manager">Manager</option>
               </select>
 
               <button
@@ -1131,7 +1131,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                 const newRole = e.target.value as UserRole;
                                 setRoleChangePending({ user, newRole });
                               }}
-                              className={`px-2.5 py-1 text-xs font-semibold rounded-lg border border-[#e5e5e5] bg-white cursor-pointer dark:bg-[#14213d] dark:text-white ${
+                              className={`px-2.5 py-1 text-xs font-semibold rounded-lg border border-[#e5e5e5] bg-white cursor-pointer ${
                                 isLocked ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:border-[#14213d]'
                               }`}
                               title={
@@ -1142,9 +1142,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   : 'Change user role'
                               }
                             >
-                              <option value="user">User</option>
-                              <option value="creator">Creator</option>
-                              <option value="manager">Manager</option>
+                              <option className="bg-white text-[#14213d]" value="user">User</option>
+                              <option className="bg-white text-[#14213d]" value="creator">Creator</option>
+                              <option className="bg-white text-[#14213d]" value="manager">Manager</option>
                             </select>
                           </td>
                           <td className="p-3 text-center font-mono font-semibold">{user.vouchCount}</td>
@@ -1431,10 +1431,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     <select
                       value={editForm.category}
                       onChange={(e) => setEditForm({ ...editForm, category: e.target.value as LifeStage })}
-                      className="w-full p-2.5 bg-[#e5e5e5]/20 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#14213d] dark:bg-[#14213d] dark:text-white"
+                      className="w-full p-2.5 bg-[#e5e5e5]/20 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#14213d]"
                     >
                       {LIFE_STAGES.filter((s) => s !== 'All Inquiries').map((stg) => (
-                        <option key={stg} value={stg}>
+                        <option className="bg-white text-[#14213d]" key={stg} value={stg}>
                           {stg}
                         </option>
                       ))}
