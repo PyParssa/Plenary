@@ -156,15 +156,50 @@ body {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
 }
 
+.discovery-tagline {
+  color: #14213d;
+  font-weight: 600;
+}
+.night-mode .discovery-tagline {
+  color: #fca311 !important;
+}
+
+.discovery-author-name {
+  color: #14213d;
+}
+.night-mode .discovery-author-name {
+  color: #ffffff !important;
+}
+
+.discovery-category-tagline {
+  color: #14213d;
+  font-weight: 600;
+}
+.night-mode .discovery-category-tagline {
+  color: #fca311 !important;
+}
+
+.discovery-desc {
+  color: rgba(20, 33, 61, 0.72);
+}
+.night-mode .discovery-desc {
+  color: rgba(245, 241, 232, 0.82) !important;
+}
+
+.discovery-quote-box {
+  background-color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #14213d;
+}
 .night-mode .discovery-quote-box {
-  background-color: rgba(16, 24, 32, 0.75) !important;
-  border-color: rgba(245, 241, 232, 0.1) !important;
+  background-color: rgba(16, 24, 32, 0.88) !important;
+  border-color: rgba(245, 241, 232, 0.15) !important;
   color: #f5f1e8 !important;
 }
 
 .night-mode .discovery-badge {
   background-color: rgba(16, 24, 32, 0.8) !important;
-  border-color: rgba(245, 241, 232, 0.12) !important;
+  border-color: rgba(245, 241, 232, 0.15) !important;
   color: #f5f1e8 !important;
 }
 

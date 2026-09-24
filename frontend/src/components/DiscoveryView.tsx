@@ -207,10 +207,10 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                       }}
                     />
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#14213d]/50 block">
+                      <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 block">
                         Perspective
                       </span>
-                      <h3 className="text-sm font-bold text-[#14213d] group-hover:text-black">
+                      <h3 className="discovery-author-name text-sm font-bold">
                         {author.name}
                       </h3>
                     </div>
@@ -218,17 +218,17 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
 
                   {/* Headline Callout: "What would X ask you?" */}
                   <div className="mb-3">
-                    <p className="text-xs font-semibold text-[#14213d]/85 mb-1.5 flex items-center gap-1.5">
-                      <Quote className="w-3 h-3 text-[#fca311]" />
+                    <p className="discovery-tagline text-xs font-semibold mb-1.5 flex items-center gap-1.5">
+                      <Quote className="w-3.5 h-3.5 text-[#fca311] shrink-0" />
                       <span>{author.tagline}</span>
                     </p>
-                    <p className="discovery-quote-box font-serif italic text-sm text-[#14213d] leading-snug line-clamp-3 bg-white/70 backdrop-blur-xs p-3 rounded-2xl border border-black/5">
+                    <p className="discovery-quote-box font-serif italic text-sm leading-snug line-clamp-3 p-3.5 rounded-2xl border">
                       “{author.signatureQuestion}”
                     </p>
                   </div>
 
                   {/* Description / Lens */}
-                  <p className="text-[11px] text-[#14213d]/65 leading-relaxed mb-4">
+                  <p className="discovery-desc text-[11px] leading-relaxed mb-4">
                     {author.description}
                   </p>
                 </div>
@@ -305,20 +305,20 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-3xl select-none">{cat.emoji}</span>
-                    <span className="discovery-badge text-[10px] px-2.5 py-0.5 rounded-full bg-white/80 border border-black/5 text-[#14213d]/70 font-medium">
+                    <span className="discovery-badge text-[10px] px-2.5 py-0.5 rounded-full border font-medium">
                       {count} {count === 1 ? 'card' : 'cards'}
                     </span>
                   </div>
 
-                  <h3 className="text-base font-bold text-[#14213d] mb-1 group-hover:text-black">
+                  <h3 className="discovery-author-name text-base font-bold mb-1">
                     {cat.label}
                   </h3>
 
-                  <p className="text-xs font-semibold text-[#14213d]/75 mb-2">
+                  <p className="discovery-category-tagline text-xs font-semibold mb-2">
                     {cat.tagline}
                   </p>
 
-                  <p className="text-[11px] text-[#14213d]/60 leading-relaxed mb-4">
+                  <p className="discovery-desc text-[11px] leading-relaxed mb-4">
                     {cat.description}
                   </p>
                 </div>

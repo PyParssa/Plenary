@@ -56,8 +56,8 @@ export default function App() {
   const [discoveryFilter, setDiscoveryFilter] = useState<DiscoveryFilterState | null>(null);
   const [cards, setCards] = useState<QuestionCard[]>(() => {
     const version = localStorage.getItem('plenary_data_version');
-    if (version !== '5') {
-      localStorage.setItem('plenary_data_version', '5');
+    if (version !== '6') {
+      localStorage.setItem('plenary_data_version', '6');
       localStorage.removeItem('plenary_cards');
       return INITIAL_QUESTIONS;
     }
@@ -300,9 +300,12 @@ export default function App() {
           selectedAtmospheres,
           role: resolvedRole,
         });
-        setCards((current) => saved.cards.length > 0
-          ? applyVouches(saved.cards, saved.vouchedCardIds)
-          : applyVouches(current, saved.vouchedCardIds));
+        setCards((current) => {
+          const remoteIds = new Set(saved.cards.map((c) => c.id));
+          const missingSeeds = INITIAL_QUESTIONS.filter((s) => !remoteIds.has(s.id));
+          const combined = saved.cards.length > 0 ? [...saved.cards, ...missingSeeds] : current;
+          return applyVouches(combined, saved.vouchedCardIds);
+        });
         setReflectionSessions(saved.reflections);
         setIsJourneyOpen(selectedAtmospheres.length === 0);
       } catch (error) {
@@ -354,12 +357,16 @@ export default function App() {
           const currentVouched = new Map<string, { vouched: boolean; vouchedAt?: number }>(
             current.map((c) => [c.id, { vouched: c.vouched, vouchedAt: c.vouchedAt }])
           );
-          return remoteCards.map((rc) => {
+          const remoteIds = new Set(remoteCards.map((rc) => rc.id));
+          const missingSeeds = INITIAL_QUESTIONS.filter((seed) => !remoteIds.has(seed.id));
+          const combined = [...remoteCards, ...missingSeeds];
+
+          return combined.map((rc) => {
             const local = currentVouched.get(rc.id);
             return {
               ...rc,
-              vouched: local?.vouched ?? false,
-              vouchedAt: local?.vouchedAt,
+              vouched: local?.vouched ?? rc.vouched ?? false,
+              vouchedAt: local?.vouchedAt ?? rc.vouchedAt,
             };
           });
         });
