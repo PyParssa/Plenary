@@ -32,6 +32,18 @@ app = FastAPI(
     version="1.0.0",
 )
 
+def get_cors_headers(request: Request) -> Dict[str, str]:
+    origin = request.headers.get("origin")
+    if origin:
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    return {}
+
+
 # Custom Exception Handler to return both 'detail' and 'error' keys
 # to ensure compatibility with standard FastAPI consumers and the Plenary frontend.
 @app.exception_handler(HTTPException)
@@ -39,6 +51,7 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail, "error": exc.detail},
+        headers=get_cors_headers(request),
     )
 
 
@@ -48,6 +61,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"detail": str(exc), "error": str(exc)},
+        headers=get_cors_headers(request),
     )
 
 
